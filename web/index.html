@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS2 Inventory</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%236fa8ff'/%3E%3Crect x='3' y='5' width='10' height='7' rx='1' fill='%2312141a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>CS2 Inventory</h1>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search everything you own, storage units included" autocomplete="off" autofocus>
+  </div>
+  <button id="sync" class="btn">Sync</button>
+</header>
+
+<div id="syncbar" class="syncbar" hidden><span id="syncmsg"></span></div>
+
+<section class="stats" id="stats"></section>
+
+<main>
+  <aside class="sidebar">
+    <h2>Storage units</h2>
+    <ul id="containers" class="containers"></ul>
+  </aside>
+
+  <section class="content">
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab is-active" data-view="items">Items</button>
+        <button class="tab" data-view="stacks">Grouped</button>
+        <button class="tab" data-view="changes">Changes</button>
+      </div>
+      <div class="filters">
+        <select id="category"><option value="">All types</option></select>
+        <select id="rarity"><option value="">All rarities</option></select>
+        <select id="location">
+          <option value="all">Anywhere</option>
+          <option value="loose">Loose only</option>
+          <option value="stored">In units only</option>
+        </select>
+        <select id="sort">
+          <option value="name">Sort: name</option>
+          <option value="float">Sort: float</option>
+          <option value="recent">Sort: newest</option>
+        </select>
+        <label class="check"><input type="checkbox" id="stattrak"> StatTrak</label>
+      </div>
+    </div>
+
+    <div id="result-count" class="result-count"></div>
+    <div id="rows" class="rows"></div>
+    <div class="pager">
+      <button id="prev" class="btn btn-quiet">Previous</button>
+      <span id="page-label"></span>
+      <button id="next" class="btn btn-quiet">Next</button>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

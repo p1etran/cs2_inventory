@@ -1,0 +1,244 @@
+import GlobalOffensive from 'globaloffensive';
+import SteamUser from 'steam-user';
+import { generateAuthCode } from 'steam-totp';
+import { DEF } from '../domain/attributes.js';
+import { sleep } from '../util/log.js';
+import type { RawEconItem } from '../domain/econ.js';
+
+const CS2_APP_ID = 730;
+
+export interface GcOptions {
+  /** Where steam-user keeps its own machine-auth files. */
+  dataDirectory: string;
+  /** Delay between storage-unit reads, to stay under the GC's rate limit. */
+  casketDelayMs?: number;
+  loginTimeoutMs?: number;
+  gcTimeoutMs?: number;
+  casketTimeoutMs?: number;
+  onProgress?: (message: string) => void;
+}
+
+export interface PasswordLogin {
+  accountName: string;
+  password: string;
+  /** Called when Steam asks for a Guard code and we have no shared secret. */
+  guardCodeProvider?: (domain: string | null, lastCodeWrong: boolean) => Promise<string>;
+  sharedSecret?: string | null;
+}
+
+export interface LoginResult {
+  steamId: string;
+  /** Present only after a password login; reuse it to skip the password next time. */
+  refreshToken: string | null;
+}
+
+export class GcError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'GcError';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new GcError(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
+/**
+ * A logged-in CS2 client, used purely to read the account's own items.
+ *
+ * The public Steam Web API reports storage units as opaque single items, so
+ * enumerating what is inside them means talking to the CS2 game coordinator
+ * the same way the game itself does.
+ */
+export class GcClient {
+  private readonly user: SteamUser;
+  private readonly cs2: GlobalOffensive;
+  private readonly options: Required<Omit<GcOptions, 'onProgress'>> & {
+    onProgress: (message: string) => void;
+  };
+  private refreshToken: string | null = null;
+  private loggedOn = false;
+
+  constructor(options: GcOptions) {
+    this.options = {
+      dataDirectory: options.dataDirectory,
+      casketDelayMs: options.casketDelayMs ?? 1100,
+      loginTimeoutMs: options.loginTimeoutMs ?? 60_000,
+      gcTimeoutMs: options.gcTimeoutMs ?? 60_000,
+      casketTimeoutMs: options.casketTimeoutMs ?? 30_000,
+      onProgress: options.onProgress ?? (() => {}),
+    };
+
+    this.user = new SteamUser();
+    this.user.setOption('dataDirectory', this.options.dataDirectory);
+    this.cs2 = new GlobalOffensive(this.user);
+
+    // Emitted after a password login, and again whenever Steam rotates it.
+    this.user.on('refreshToken', (token: string) => {
+      this.refreshToken = token;
+    });
+  }
+
+  private waitForLogin(): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const onLoggedOn = () => {
+        this.user.removeListener('error', onError);
+        this.loggedOn = true;
+        const steamId = this.user.steamID?.getSteamID64();
+        if (!steamId) {
+          reject(new GcError('Logged on but Steam did not report a SteamID'));
+          return;
+        }
+        resolve(steamId);
+      };
+      const onError = (error: Error) => {
+        this.user.removeListener('loggedOn', onLoggedOn);
+        reject(error);
+      };
+      this.user.once('loggedOn', onLoggedOn);
+      this.user.once('error', onError);
+    });
+  }
+
+  async loginWithPassword(login: PasswordLogin): Promise<LoginResult> {
+    // Steam asks for a Guard code out of band; answer it from the shared
+    // secret when we have one, otherwise hand the prompt back to the caller.
+    this.user.on('steamGuard', (domain: string | null, callback: (code: string) => void, lastCodeWrong: boolean) => {
+      if (login.sharedSecret) {
+        callback(generateAuthCode(login.sharedSecret));
+        return;
+      }
+      if (!login.guardCodeProvider) {
+        throw new GcError('Steam Guard code required but no prompt was provided');
+      }
+      void login.guardCodeProvider(domain, lastCodeWrong).then(
+        (code) => callback(code.trim()),
+        () => callback(''),
+      );
+    });
+
+    this.user.logOn({
+      accountName: login.accountName,
+      password: login.password,
+      ...(login.sharedSecret ? { twoFactorCode: generateAuthCode(login.sharedSecret) } : {}),
+    });
+
+    const steamId = await withTimeout(
+      this.waitForLogin(),
+      this.options.loginTimeoutMs,
+      'Timed out waiting for Steam login',
+    );
+
+    // The token arrives on its own event, usually just after loggedOn.
+    for (let i = 0; i < 40 && this.refreshToken === null; i += 1) {
+      await sleep(50);
+    }
+    return { steamId, refreshToken: this.refreshToken };
+  }
+
+  async loginWithRefreshToken(refreshToken: string): Promise<LoginResult> {
+    this.user.logOn({ refreshToken });
+    const steamId = await withTimeout(
+      this.waitForLogin(),
+      this.options.loginTimeoutMs,
+      'Timed out waiting for Steam login',
+    );
+    return { steamId, refreshToken: this.refreshToken };
+  }
+
+  /** Launches CS2 so the game coordinator hands over the inventory. */
+  async connectToGc(): Promise<void> {
+    if (!this.loggedOn) throw new GcError('Not logged on to Steam');
+    if (this.cs2.haveGCSession) return;
+
+    const connected = new Promise<void>((resolve) => {
+      this.cs2.once('connectedToGC', () => resolve());
+    });
+
+    this.user.setPersona(SteamUser.EPersonaState.Online);
+    this.user.gamesPlayed([CS2_APP_ID], true);
+
+    await withTimeout(
+      connected,
+      this.options.gcTimeoutMs,
+      'Timed out connecting to the CS2 game coordinator. Is the account able to play CS2?',
+    );
+  }
+
+  /**
+   * Items the GC has handed us so far. Note that storage-unit contents can
+   * appear here unprompted, so callers must filter on `casket_id` themselves.
+   */
+  get inventory(): RawEconItem[] {
+    return (this.cs2.inventory ?? []) as RawEconItem[];
+  }
+
+  /** Storage units in the account, with the item count the game reports. */
+  get caskets(): RawEconItem[] {
+    return this.inventory.filter(
+      (item) => item.def_index === DEF.STORAGE_UNIT && !item.casket_id,
+    );
+  }
+
+  private readCasketOnce(casketId: string): Promise<RawEconItem[]> {
+    return new Promise<RawEconItem[]>((resolve, reject) => {
+      this.cs2.getCasketContents(casketId, (error, items) => {
+        if (error) reject(error);
+        else resolve((items ?? []) as RawEconItem[]);
+      });
+    });
+  }
+
+  /**
+   * Reads one storage unit, retrying on the timeouts the GC hands out when it
+   * is busy. Each attempt backs off further to avoid making throttling worse.
+   */
+  async readCasket(casketId: string, attempts = 3): Promise<RawEconItem[]> {
+    let lastError: Error = new GcError(`Could not read storage unit ${casketId}`);
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        return await withTimeout(
+          this.readCasketOnce(casketId),
+          this.options.casketTimeoutMs,
+          `Timed out reading storage unit ${casketId}`,
+        );
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (attempt < attempts) {
+          const backoff = this.options.casketDelayMs * 2 ** attempt;
+          this.options.onProgress(
+            `storage unit ${casketId}: ${lastError.message}; retrying in ${Math.round(backoff / 100) / 10}s`,
+          );
+          await sleep(backoff);
+        }
+      }
+    }
+    throw lastError;
+  }
+
+  get casketDelayMs(): number {
+    return this.options.casketDelayMs;
+  }
+
+  disconnect(): void {
+    try {
+      this.user.gamesPlayed([], true);
+      this.user.logOff();
+    } catch {
+      // Nothing useful to do if the socket is already gone.
+    }
+  }
+}
