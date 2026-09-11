@@ -111,6 +111,46 @@ describe('http api', () => {
     expect(facets.rarities).toContain('Classified');
   });
 
+  it('exports every matching item as CSV', async () => {
+    const response = await fetch(`${base}/api/export`);
+    expect(response.ok).toBe(true);
+    expect(response.headers.get('content-type')).toContain('text/csv');
+    expect(response.headers.get('content-disposition')).toMatch(
+      /attachment; filename="cs2-inventory-\d{4}-\d{2}-\d{2}\.csv"/,
+    );
+
+    // Response.text() strips a leading BOM, so the bytes are what to assert on.
+    const bytes = new Uint8Array(await response.clone().arrayBuffer());
+    expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xef, 0xbb, 0xbf]);
+
+    const lines = (await response.text()).trim().split('\n');
+    expect(lines[0]).toBe(
+      'asset_id,market_hash_name,exterior,float,paint_seed,stattrak,souvenir,rarity,category,location,name_tag,first_seen',
+    );
+    expect(lines).toHaveLength(4);
+    expect(lines.some((line) => line.includes('overpay stash'))).toBe(true);
+  });
+
+  it('exports only what the filters match', async () => {
+    const body = await (await fetch(`${base}/api/export?q=asiimov`)).text();
+    const lines = body.trim().split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[1]).toContain('AWP | Asiimov (Field-Tested)');
+  });
+
+  it('ignores the paging window an export inherits from the item list', async () => {
+    const body = await (await fetch(`${base}/api/export?limit=1&offset=2`)).text();
+    expect(body.trim().split('\n')).toHaveLength(4);
+  });
+
+  it('exports JSON on request', async () => {
+    const response = await fetch(`${base}/api/export?format=json`);
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(response.headers.get('content-disposition')).toContain('.json"');
+    const items = (await response.json()) as { asset_id: string }[];
+    expect(items).toHaveLength(3);
+  });
+
   it('reports an idle sync', async () => {
     expect(await get('/api/sync')).toMatchObject({ state: 'idle' });
   });

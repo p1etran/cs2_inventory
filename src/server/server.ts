@@ -12,6 +12,7 @@ import {
   searchItems,
   type SearchOptions,
 } from '../db/repo.js';
+import { collectExport, exportCsv, exportFilename, exportJson } from '../export.js';
 import { SyncRunner } from './syncRunner.js';
 
 const WEB_ROOT = path.resolve(fileURLToPath(import.meta.url), '../../../web');
@@ -71,6 +72,24 @@ export function createApp(db: Db, config: Config): express.Express {
 
   app.get('/api/stacks', (req, res) => {
     res.json(listStacks(db, searchOptionsFrom(req)));
+  });
+
+  /**
+   * The current filters as a file. Excel on Windows reads a UTF-8 CSV as
+   * mojibake unless it starts with a BOM, and storage units get named in
+   * whatever language their owner speaks, so the download carries one.
+   */
+  app.get('/api/export', (req, res) => {
+    const format = req.query.format === 'json' ? 'json' : 'csv';
+    const data = collectExport(db, searchOptionsFrom(req));
+    const body = format === 'json' ? exportJson(data) : `\ufeff${exportCsv(data)}`;
+
+    res.setHeader(
+      'Content-Type',
+      format === 'json' ? 'application/json; charset=utf-8' : 'text/csv; charset=utf-8',
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${exportFilename(format)}"`);
+    res.send(body);
   });
 
   app.get('/api/events', (req, res) => {

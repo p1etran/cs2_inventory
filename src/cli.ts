@@ -10,6 +10,12 @@ import {
   searchItems,
   type ItemRow,
 } from './db/repo.js';
+import {
+  collectExport,
+  describeLocation,
+  exportCsv,
+  exportJson,
+} from './export.js';
 import { startServer } from './server/server.js';
 import {
   clearSession,
@@ -20,7 +26,6 @@ import {
 } from './steam/credentials.js';
 import { GcClient } from './steam/gc.js';
 import { runSync } from './sync/sync.js';
-import { toCsv } from './util/csv.js';
 import { log } from './util/log.js';
 import { confirm, prompt, promptSecret } from './util/prompt.js';
 
@@ -111,11 +116,6 @@ function withDb<T>(config: Config, fn: (db: Db) => T): T {
   } finally {
     db.close();
   }
-}
-
-function describeLocation(row: ItemRow, containerLabels: Map<string, string>): string {
-  if (!row.container_id) return 'inventory';
-  return containerLabels.get(row.container_id) ?? `unit ${row.container_id}`;
 }
 
 async function commandLogin(config: Config): Promise<void> {
@@ -331,53 +331,13 @@ function commandChanges(config: Config, args: Args): void {
 }
 
 async function commandExport(config: Config, args: Args): Promise<void> {
-  const rows = withDb(config, (db) => {
-    const labels = new Map(listContainers(db).map((c) => [c.asset_id, c.label]));
-    const total = searchItems(db, { limit: 1 }).total;
-    const all: ItemRow[] = [];
-    for (let offset = 0; offset < total; offset += 1000) {
-      all.push(...searchItems(db, { limit: 1000, offset }).items);
-    }
-    return { all, labels };
-  });
-
-  const output = args.flags.has('json')
-    ? `${JSON.stringify(rows.all, null, 2)}\n`
-    : toCsv(
-        [
-          'asset_id',
-          'market_hash_name',
-          'exterior',
-          'float',
-          'paint_seed',
-          'stattrak',
-          'souvenir',
-          'rarity',
-          'category',
-          'location',
-          'name_tag',
-          'first_seen',
-        ],
-        rows.all.map((row) => [
-          row.asset_id,
-          row.market_hash_name,
-          row.wear_name,
-          row.float_value,
-          row.paint_seed,
-          row.stattrak ? 'yes' : '',
-          row.souvenir ? 'yes' : '',
-          row.rarity_name,
-          row.category,
-          describeLocation(row, rows.labels),
-          row.is_container ? '' : row.custom_name,
-          row.first_seen,
-        ]),
-      );
+  const data = withDb(config, (db) => collectExport(db));
+  const output = args.flags.has('json') ? exportJson(data) : exportCsv(data);
 
   const outPath = flagString(args, 'out');
   if (outPath) {
     await fs.writeFile(outPath, output, 'utf8');
-    log.info(`Wrote ${rows.all.length} items to ${outPath}`);
+    log.info(`Wrote ${data.items.length} items to ${outPath}`);
   } else {
     process.stdout.write(output);
   }

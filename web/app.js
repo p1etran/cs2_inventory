@@ -23,7 +23,8 @@ function el(tag, className, text) {
   return node;
 }
 
-function queryString(extra = {}) {
+/** Everything that narrows the result set, without the paging window. */
+function filterParams() {
   const params = new URLSearchParams();
   if (state.query) params.set('q', state.query);
   if (state.container) params.set('container', state.container);
@@ -31,11 +32,37 @@ function queryString(extra = {}) {
   if (state.category) params.set('category', state.category);
   if (state.rarity) params.set('rarity', state.rarity);
   if (state.stattrak) params.set('stattrak', '1');
+  return params;
+}
+
+function queryString(extra = {}) {
+  const params = filterParams();
   params.set('sort', state.sort);
   params.set('limit', String(PAGE_SIZE));
   params.set('offset', String(state.page * PAGE_SIZE));
   for (const [key, value] of Object.entries(extra)) params.set(key, value);
   return params.toString();
+}
+
+/**
+ * The export link always points at the filtered item list, so it downloads
+ * what the page is showing rather than one page of it. Hidden on the changes
+ * view, where the rows are events and an item export would not be what the
+ * button appears to offer.
+ */
+function updateExportLink(count) {
+  const link = $('export');
+  link.hidden = state.view === 'changes';
+  if (link.hidden) return;
+
+  const params = filterParams();
+  const filtered = params.toString().length > 0;
+  params.set('sort', state.sort);
+  link.href = `/api/export?${params}`;
+  link.title = filtered
+    ? 'Download every item matching the current filters as CSV'
+    : 'Download your whole inventory as CSV';
+  link.setAttribute('aria-disabled', String(count === 0));
 }
 
 async function getJson(url) {
@@ -190,6 +217,7 @@ async function refresh() {
 
   if (state.view === 'changes') {
     const events = await getJson('/api/events?limit=200');
+    updateExportLink(events.length);
     $('result-count').textContent = `${events.length} recent changes`;
     $('page-label').textContent = '';
     rows.replaceChildren(
@@ -200,6 +228,7 @@ async function refresh() {
 
   if (state.view === 'stacks') {
     const data = await getJson(`/api/stacks?${queryString()}`);
+    updateExportLink(data.total);
     $('result-count').textContent = `${data.total.toLocaleString()} distinct items`;
     $('page-label').textContent = `Page ${state.page + 1}`;
     rows.replaceChildren(
@@ -209,6 +238,7 @@ async function refresh() {
   }
 
   const data = await getJson(`/api/items?${queryString()}`);
+  updateExportLink(data.total);
   $('result-count').textContent = `${data.total.toLocaleString()} items`;
   $('page-label').textContent = `Page ${state.page + 1} of ${Math.max(1, Math.ceil(data.total / PAGE_SIZE))}`;
   rows.replaceChildren(

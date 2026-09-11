@@ -86,6 +86,12 @@ unit, group duplicates to see how many of something you own, and review what
 changed between syncs. The sidebar shows each unit's fill level, turning amber
 when a unit holds more than has been read.
 
+`Export CSV` downloads whatever the filters currently match — the whole
+inventory when nothing is selected, or just one storage unit's contents when one
+is. The file is the same shape as `cs2inv export`, with a byte-order mark so
+Excel reads item and unit names in non-English alphabets correctly. Add
+`&format=json` to the download URL for JSON.
+
 `Sync` in the UI works when the session passphrase is available to the server
 (`CS2INV_PASSPHRASE`); otherwise run `cs2inv sync` in a terminal.
 
@@ -132,13 +138,14 @@ reports thousands of items as gone.
 ## Development
 
 ```bash
-npm test           # 78 tests
+npm test           # 82 tests
 npm run typecheck
 npm run build
 ```
 
 Tests cover name assembly, attribute decoding, catalog resolution for every item
-family, the sync reconciliation rules, credential encryption and the HTTP API.
+family, the sync reconciliation rules, credential encryption, and the HTTP API
+including the export endpoint.
 The Steam connection is faked, so the suite needs no account and no network.
 
 ## Dependency audit
