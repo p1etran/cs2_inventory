@@ -45,11 +45,11 @@ async function connect(): Promise<void> {
 
   try {
     const session = await readSteamSession();
-    const expiry = session.expiresAt
-      ? ` (valid until ${session.expiresAt.toISOString().slice(0, 10)})`
-      : '';
-    write(`Found the Steam session already in this browser${expiry}`, 'ok');
-    write('No password and no Steam Guard code were needed.', 'dim');
+    write(
+      `Exchanged this browser's Steam session for a logon token${session.accountName ? ` (${session.accountName})` : ''}`,
+      'ok',
+    );
+    write('No password, no Steam Guard code, and no cookie was read.', 'dim');
 
     await client.connect();
     const result = await client.logOn(session);

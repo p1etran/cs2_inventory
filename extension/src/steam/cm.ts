@@ -36,10 +36,13 @@ import type { SteamSession } from './session.js';
  */
 
 const PROTOCOL_VERSION = 65580;
-/** Windows 10, as an ordinary desktop client would report. */
-const CLIENT_OS_WINDOWS_10 = 16;
-/** Shown in the account's device list, so it says plainly what this is. */
-const MACHINE_NAME = 'CS2 Inventory (browser extension)';
+/**
+ * The OS type and UI mode a web-based client reports. Both come from
+ * steam-user's own handling of a web logon token: 4294966596 is -700 as a
+ * uint32, Valve's "web" OS type, and ui_mode 4 marks a web client.
+ */
+const CLIENT_OS_WEB = 4294966596;
+const UI_MODE_WEB = 4;
 const ORIGIN_RULE_ID = 1;
 const CONNECT_TIMEOUT_MS = 10_000;
 const LOGON_TIMEOUT_MS = 20_000;
@@ -310,17 +313,18 @@ export class CmClient {
       });
     });
 
+    // A web logon token is a different shape of logon from a password or a
+    // refresh token: Steam expects the web OS type and UI mode, and none of
+    // the fields a desktop client would send. steam-user strips exactly these
+    // for this path, and sending them anyway is a way to be refused.
     this.send(
       EMsg.ClientLogon,
       encode(CMsgClientLogon, {
         protocol_version: PROTOCOL_VERSION,
-        access_token: session.refreshToken,
-        should_remember_password: true,
-        client_os_type: CLIENT_OS_WINDOWS_10,
-        client_language: 'english',
-        machine_name: MACHINE_NAME,
-        supports_rate_limit_response: true,
-        obfuscated_private_ip: { v4: 0 },
+        web_logon_nonce: session.webLogonToken,
+        account_name: session.accountName,
+        client_os_type: CLIENT_OS_WEB,
+        ui_mode: UI_MODE_WEB,
         chat_mode: 2,
       }),
     );

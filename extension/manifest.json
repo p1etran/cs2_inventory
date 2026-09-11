@@ -5,12 +5,10 @@
   "description": "Index everything you own in CS2, including the contents of your storage units. Runs entirely in your browser.",
   "minimum_chrome_version": "116",
   "permissions": [
-    "cookies",
     "declarativeNetRequestWithHostAccess",
     "storage"
   ],
   "host_permissions": [
-    "https://login.steampowered.com/*",
     "https://steamcommunity.com/*",
     "https://api.steampowered.com/*",
     "wss://*.steamserver.net/*",

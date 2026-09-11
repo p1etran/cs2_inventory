@@ -31,10 +31,21 @@ are committed so a normal build does not need it.
 
 ## How it works, and the two things that are not obvious
 
-**No password.** A "remember me" login leaves a long-lived Steam refresh token
-in a cookie on `login.steampowered.com`. An extension can read it; no web page
-can, because the cookie is httpOnly and on another origin. That single fact is
-why this is an extension and not a website.
+**No password.** `steamcommunity.com/chat/clientjstoken` takes the session
+cookies the browser already sends and returns a short-lived *web logon token*,
+plus the account name and SteamID. That token is what
+`CMsgClientLogon.web_logon_nonce` is for, and it is the supported way to log a
+web session on to the connection manager.
+
+Two things follow from that, both good: no cookie is ever read, so the
+`cookies` permission is not needed; and the long-lived refresh token never
+leaves the cookie jar -- only a short-lived token reaches Steam, and nothing is
+stored.
+
+An earlier attempt read the refresh token out of the `steamRefresh_steam`
+cookie and offered it as `access_token`. Steam refused it with
+`InvalidPassword`: a token minted for a browser is not one a game client may
+log on with, and Valve is right not to let a web session escalate itself.
 
 **Steam refuses a WebSocket that carries an `Origin` header.** Browsers attach
 one to every handshake and page JavaScript cannot remove it. Measured: from an
@@ -66,16 +77,17 @@ loading the extension, not by reading about it.
 
 | Permission | Why |
 | --- | --- |
-| `cookies` + `login.steampowered.com` | Read the existing session. Never a password. |
+| `steamcommunity.com` | Exchange the signed-in session for a short-lived logon token. Never a password. |
 | `declarativeNetRequestWithHostAccess` | The one `Origin` rule above. Host-scoped: it cannot touch a request to a host the extension has no permission for. |
 | `*.steamserver.net` | The connection-manager WebSocket. |
 | `api.steampowered.com` | Steam's public server list. |
 | `raw.githubusercontent.com` | The public CS2 item schema, used to name items. |
 | `storage` | The index, kept locally. |
 
-Not requested: `tabs` (finding an already-open tab would mean asking to read
-your browsing history, which is a bad trade for avoiding a duplicate tab),
-`scripting`, and `offscreen`.
+Not requested: `cookies` (nothing is read -- the browser attaches the session
+itself), `tabs` (finding an already-open tab would mean asking to read your
+browsing history, a bad trade for avoiding a duplicate tab), `scripting`, and
+`offscreen`.
 
 No server, no analytics, no remote code. Nothing leaves the browser except
 traffic to Valve and the item schema. The build is unminified on purpose so
@@ -97,7 +109,7 @@ extension/
       frame.ts        net message framing, Multi inflation
       protos.ts       encode/decode helpers
       servers.ts      server selection
-      session.ts      reads the refresh token from the browser's cookies
+      session.ts      exchanges the browser session for a logon token
       emsg.ts         the message ids and result codes used
 ```
 

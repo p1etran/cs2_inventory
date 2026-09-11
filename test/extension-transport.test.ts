@@ -19,6 +19,7 @@ import {
 } from '../extension/src/steam/protos.js';
 import { EMsg } from '../extension/src/steam/emsg.js';
 import { cmSocketUrl, selectServers } from '../extension/src/steam/servers.js';
+import { parseClientJsToken, readSteamSession } from '../extension/src/steam/session.js';
 
 const REPO = path.resolve(import.meta.dirname, '..');
 
@@ -305,6 +306,79 @@ describe('server selection', () => {
   it('builds the socket URL Steam expects', () => {
     expect(cmSocketUrl('cmp1-atl3.steamserver.net:443')).toBe(
       'wss://cmp1-atl3.steamserver.net:443/cmsocket/',
+    );
+  });
+});
+
+describe('steam session exchange', () => {
+  it('reads the session out of the token endpoint reply', () => {
+    const session = parseClientJsToken({
+      logged_in: true,
+      steamid: '76561198061412334',
+      account_name: 'petro',
+      token: 'short-lived-nonce',
+    });
+
+    expect(session).toEqual({
+      steamId: '76561198061412334',
+      accountName: 'petro',
+      webLogonToken: 'short-lived-nonce',
+    });
+  });
+
+  it('says plainly when the browser is not signed in to Steam', () => {
+    expect(() => parseClientJsToken({ logged_in: false })).toThrow(/not signed in/i);
+    expect(() => parseClientJsToken({})).toThrow(/not signed in/i);
+    expect(() => parseClientJsToken(null)).toThrow(/not signed in/i);
+  });
+
+  it('does not pretend to have a session when the token is missing', () => {
+    // Signed in, but Steam gave us nothing usable -- a different problem from
+    // not being signed in, and worth a different message.
+    expect(() => parseClientJsToken({ logged_in: true, steamid: '765' })).toThrow(
+      /no logon token/i,
+    );
+    expect(() => parseClientJsToken({ logged_in: true, token: 'abc' })).toThrow(/no logon token/i);
+  });
+
+  it('tolerates a missing account name', () => {
+    const session = parseClientJsToken({ logged_in: true, steamid: '765', token: 'abc' });
+    expect(session.accountName).toBe('');
+  });
+
+  it('fetches from the chat token endpoint with the session attached', async () => {
+    const seen: string[] = [];
+    const session = await readSteamSession(async (url) => {
+      seen.push(url);
+      return { logged_in: true, steamid: '765', account_name: 'petro', token: 'abc' };
+    });
+
+    expect(seen).toEqual(['https://steamcommunity.com/chat/clientjstoken']);
+    expect(session.webLogonToken).toBe('abc');
+  });
+});
+
+describe('web logon message', () => {
+  it('sends the web OS type and UI mode, and none of the desktop fields', () => {
+    // A web logon token needs a different shape from a password logon. Sending
+    // the desktop fields anyway is a way to be refused, so this pins the set.
+    const fields = {
+      protocol_version: 65580,
+      web_logon_nonce: 'short-lived-nonce',
+      account_name: 'petro',
+      client_os_type: 4294966596,
+      ui_mode: 4,
+      chat_mode: 2,
+    };
+
+    expect(Array.from(encode(CMsgClientLogon, fields))).toEqual(
+      Array.from(encodeWithReference('CMsgClientLogon', fields)),
+    );
+  });
+
+  it('refuses a misspelled field instead of silently dropping it', () => {
+    expect(() => encode(CMsgClientLogon, { web_logon_nonce_typo: 'x' })).toThrow(
+      /unknown field web_logon_nonce_typo/,
     );
   });
 });

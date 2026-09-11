@@ -1,47 +1,41 @@
 /**
- * Reading the Steam session that is already in this browser.
+ * Turning the Steam login already in this browser into something the
+ * connection manager will accept.
  *
- * This is the whole reason the extension needs no password and no Steam Guard
- * code. A "remember me" login leaves a long-lived refresh token in a cookie
- * on login.steampowered.com, and only an extension can read it -- the cookie
- * is httpOnly and on another origin, so no web page can.
+ * The first attempt here read the long-lived refresh token out of the
+ * `steamRefresh_steam` cookie and offered it as `access_token`. Steam refused
+ * that with `InvalidPassword`: a token minted for a browser is not a token a
+ * game client may log on with, and Valve is right not to let a web session
+ * escalate itself that way.
  *
- * Only a token issued by "steam" is accepted for a client logon. The token in
- * `steamLoginSecure` is a web access token and will be refused, so it is not
- * used here.
+ * The supported route is an exchange. `steamcommunity.com/chat/clientjstoken`
+ * takes the session cookies the browser already sends and hands back a
+ * short-lived *web logon token*, together with the account name and SteamID.
+ * That token is what `CMsgClientLogon.web_logon_nonce` is for.
+ *
+ * This is better than what it replaces, not merely different:
+ *
+ *  - No cookie is ever read, so the `cookies` permission is not needed. The
+ *    browser attaches the session itself, the way it would for any page on
+ *    steamcommunity.com.
+ *  - The long-lived refresh token never leaves the cookie jar. Only a
+ *    short-lived token reaches the CM, and nothing is stored anywhere.
  */
+
+const CLIENT_TOKEN_URL = 'https://steamcommunity.com/chat/clientjstoken';
 
 export interface SteamSession {
   steamId: string;
-  refreshToken: string;
-  expiresAt: Date | null;
+  accountName: string;
+  /** Short-lived; fetch it immediately before logging on. */
+  webLogonToken: string;
 }
 
-interface TokenClaims {
-  iss?: string;
-  sub?: string;
-  exp?: number;
-}
-
-/** Steam packs these cookies as "<steamid>||<token>". */
-function splitCookie(value: string): { steamId: string | null; token: string } {
-  const decoded = decodeURIComponent(value);
-  const separator = decoded.indexOf('||');
-  if (separator === -1) return { steamId: null, token: decoded };
-  return { steamId: decoded.slice(0, separator), token: decoded.slice(separator + 2) };
-}
-
-export function decodeTokenClaims(token: string): TokenClaims | null {
-  const parts = token.split('.');
-  if (parts.length !== 3 || !parts[1]) return null;
-  try {
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
-    return JSON.parse(new TextDecoder().decode(bytes)) as TokenClaims;
-  } catch {
-    return null;
-  }
+interface ClientJsToken {
+  logged_in?: boolean;
+  steamid?: string;
+  account_name?: string;
+  token?: string;
 }
 
 export class NoSteamSessionError extends Error {
@@ -51,40 +45,39 @@ export class NoSteamSessionError extends Error {
   }
 }
 
-const COOKIE_SOURCES = [
-  { url: 'https://login.steampowered.com', name: 'steamRefresh_steam' },
-  { url: 'https://steamcommunity.com', name: 'steamRefresh_steam' },
-];
+export type TokenFetcher = (url: string) => Promise<unknown>;
 
-function getCookie(url: string, name: string): Promise<chrome.cookies.Cookie | null> {
-  return new Promise((resolve) => {
-    chrome.cookies.get({ url, name }, (cookie) => resolve(cookie ?? null));
-  });
+const defaultFetcher: TokenFetcher = async (url) => {
+  // `include` so the browser sends the steamcommunity.com session it already
+  // holds. Host permission is what lets an extension do this at all.
+  const response = await fetch(url, { credentials: 'include' });
+  if (!response.ok) {
+    throw new NoSteamSessionError(`Steam returned HTTP ${response.status} for the logon token`);
+  }
+  return response.json();
+};
+
+/** Reads a session out of the token endpoint's reply. Pure, so it is testable. */
+export function parseClientJsToken(body: unknown): SteamSession {
+  const reply = (body ?? {}) as ClientJsToken;
+
+  if (!reply.logged_in) {
+    throw new NoSteamSessionError(
+      'You are not signed in to Steam in this browser. Open steamcommunity.com, sign in, then try again.',
+    );
+  }
+  if (!reply.token || !reply.steamid) {
+    throw new NoSteamSessionError(
+      'Steam said you are signed in but returned no logon token. Try reloading steamcommunity.com.',
+    );
+  }
+  return {
+    steamId: reply.steamid,
+    accountName: reply.account_name ?? '',
+    webLogonToken: reply.token,
+  };
 }
 
-export async function readSteamSession(): Promise<SteamSession> {
-  for (const source of COOKIE_SOURCES) {
-    const cookie = await getCookie(source.url, source.name);
-    if (!cookie) continue;
-
-    const { steamId, token } = splitCookie(cookie.value);
-    const claims = decodeTokenClaims(token);
-    if (!claims || claims.iss !== 'steam') continue;
-
-    const expiresAt = typeof claims.exp === 'number' ? new Date(claims.exp * 1000) : null;
-    if (expiresAt && expiresAt.getTime() <= Date.now()) {
-      throw new NoSteamSessionError(
-        `The Steam session in this browser expired on ${expiresAt.toISOString().slice(0, 10)}. Sign in to Steam again.`,
-      );
-    }
-
-    const resolvedId = claims.sub ?? steamId;
-    if (!resolvedId) continue;
-
-    return { steamId: resolvedId, refreshToken: token, expiresAt };
-  }
-
-  throw new NoSteamSessionError(
-    'No Steam session found in this browser. Sign in at steamcommunity.com with "Remember me" ticked, then try again.',
-  );
+export async function readSteamSession(fetcher: TokenFetcher = defaultFetcher): Promise<SteamSession> {
+  return parseClientJsToken(await fetcher(CLIENT_TOKEN_URL));
 }
