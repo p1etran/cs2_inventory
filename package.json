@@ -5,9 +5,16 @@
   "description": "A local index of a CS2 inventory, including the contents of storage units",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=20.11" },
-  "bin": { "cs2inv": "dist/cli.js" },
-  "files": ["dist", "web"],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "bin": {
+    "cs2inv": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "web"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -21,6 +28,7 @@
     "better-sqlite3": "^13.0.3",
     "express": "^5.2.1",
     "globaloffensive": "^3.3.0",
+    "steam-session": "^1.9.4",
     "steam-totp": "^2.1.2",
     "steam-user": "^5.3.0"
   },

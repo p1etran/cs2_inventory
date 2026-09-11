@@ -54,9 +54,19 @@ node dist/cli.js sync      # reads everything, including every storage unit
 node dist/cli.js serve     # browse it at http://127.0.0.1:8733
 ```
 
-`login` asks for your account name, password and a Steam Guard code, then
-throws the password away. Later syncs reuse the saved token. The password and
-passphrase prompts echo an asterisk per character; Ctrl+C cancels.
+To get a shorter `cs2inv` command, link the package once with `npm link` (on
+Windows run the terminal as administrator, or just keep using `node
+dist/cli.js` -- every command below works either way, and the tool prints
+follow-up commands in whichever form you are using).
+
+`login` asks for your account name and password, then throws the password
+away. For the second factor you get **both routes at once**: approve the
+sign-in in your Steam mobile app, or type the code from it -- whichever you do
+first completes the login. Password and passphrase prompts echo an asterisk per
+character; Ctrl+C cancels.
+
+If you chose a passphrase, `sync` asks for it when it needs the saved token.
+Set `CS2INV_PASSPHRASE` to skip that prompt.
 
 ### Commands
 
@@ -74,7 +84,8 @@ passphrase prompts echo an asterisk per character; Ctrl+C cancels.
 | `catalog --force` | Redownload the item schema |
 
 Useful flags: `--data-dir <path>`, `--limit <n>`, `--container <id>`, `--loose`,
-`--json`, `--port <n>`.
+`--json`, `--port <n>`, `--unresolved`, `--verbose` (prints the Steam client's
+own log during login).
 
 Search matches on every whitespace-separated word, in any order, against the
 item name, its name tag, and **the label of the unit it sits in** — so
@@ -91,6 +102,15 @@ when a unit holds more than has been read.
 (`CS2INV_PASSPHRASE`); otherwise run `cs2inv sync` in a terminal.
 
 ## How it works
+
+**Signing in.** `login` drives Steam's authentication directly rather than
+through the Steam client library's own login helper, because that helper
+cancels the authentication session the moment Steam asks for a second factor --
+which makes approving a sign-in on your phone impossible, since the session
+being approved has already been thrown away. Holding the session open means
+Steam's own polling completes as soon as you tap approve, and a typed code is
+submitted against that same session instead of starting a fresh attempt (so a
+mistyped code does not fire off another phone notification).
 
 **Reading storage units.** `sync` logs in to Steam, launches CS2 the way the
 game client does, and asks the game coordinator for the account's items. Storage
@@ -133,14 +153,16 @@ reports thousands of items as gone.
 ## Development
 
 ```bash
-npm test           # 78 tests
+npm test           # 118 tests
 npm run typecheck
 npm run build
 ```
 
 Tests cover name assembly, attribute decoding, catalog resolution for every item
-family, the sync reconciliation rules, credential encryption and the HTTP API.
-The Steam connection is faked, so the suite needs no account and no network.
+family, the sync reconciliation rules, the sign-in flow (both the phone-approval
+and typed-code routes), refresh-token validation, terminal prompt handling,
+credential encryption and the HTTP API. Steam itself is faked, so the suite
+needs no account and no network.
 
 ## Dependency audit
 

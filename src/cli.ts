@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { loadCatalog } from './catalog/store.js';
 import { loadConfig, type Config } from './config.js';
 import { openDatabase, type Db } from './db/database.js';
@@ -17,16 +18,34 @@ import {
   loadSession,
   saveSession,
   SessionLockedError,
+  type StoredSession,
 } from './steam/credentials.js';
 import { describeLoginError, GcClient } from './steam/gc.js';
+import { loginWithPassword } from './steam/login.js';
+import { inspectRefreshToken } from './steam/token.js';
 import { runSync } from './sync/sync.js';
 import { toCsv } from './util/csv.js';
 import { log } from './util/log.js';
 import { confirm, prompt, PromptCancelled, promptSecret } from './util/prompt.js';
 
-const USAGE = `cs2inv - a local CS2 inventory index, storage units included
+/**
+ * How this program was started, so printed follow-up commands can be pasted
+ * straight back into the shell. The `cs2inv` name only exists once the package
+ * has been linked or installed globally; before that it is run through node.
+ */
+function cmd(): string {
+  const script = process.argv[1] ?? '';
+  const base = path.basename(script).replace(/\.(cmd|ps1|exe)$/, '');
+  if (base === 'cs2inv') return 'cs2inv';
 
-Usage: cs2inv <command> [options]
+  const relative = path.relative(process.cwd(), script);
+  const target = !relative || relative.startsWith('..') ? script : relative;
+  return `node ${target.split(path.sep).join('/')}`;
+}
+
+const usage = (): string => `cs2inv - a local CS2 inventory index, storage units included
+
+Usage: ${cmd()} <command> [options]
 
 Commands:
   login              Sign in to Steam once and save a refresh token locally
@@ -50,6 +69,7 @@ Options:
   --out <path>       Write export output to a file instead of stdout
   --port <n>         Port for serve (default 8733)
   --force            Redownload the item schema even if it is fresh
+  --verbose          Print the Steam client's own log during login
 `;
 
 interface Args {
@@ -131,7 +151,7 @@ function describeLocation(row: ItemRow, containerLabels: Map<string, string>): s
   return containerLabels.get(row.container_id) ?? `unit ${row.container_id}`;
 }
 
-async function commandLogin(config: Config): Promise<void> {
+async function commandLogin(config: Config, args: Args): Promise<void> {
   const existing = await isSessionEncrypted(config.credentialsPath);
   if (existing !== null && !(await confirm('A saved session already exists. Replace it?'))) {
     return;
@@ -141,59 +161,85 @@ async function commandLogin(config: Config): Promise<void> {
   const accountName = await prompt('Steam account name: ');
   const password = await promptSecret('Steam password: ');
 
-  const gc = new GcClient({ dataDirectory: config.dataDir, onProgress: (m) => log.info(m) });
-  try {
-    const result = await gc
-      .loginWithPassword({
-        accountName,
-        password,
-        sharedSecret: config.sharedSecret,
-        guardCodeProvider: async (domain) =>
-          prompt(domain ? `Steam Guard code emailed to ${domain}: ` : 'Steam Guard code: '),
-      })
-      .catch((error: unknown) => {
-        throw new Error(describeLoginError(error));
-      });
+  const result = await loginWithPassword({
+    accountName,
+    password,
+    sharedSecret: config.sharedSecret,
+    debug: args.flags.has('verbose') ? (message) => log.info(`[steam] ${message}`) : undefined,
+    io: {
+      report: (message) => log.info(message),
+      // Passing the signal lets the code prompt disappear by itself the moment
+      // the sign-in is approved on a phone instead.
+      requestCode: (label, signal) => prompt(label, undefined, signal),
+    },
+  });
 
-    if (!result.refreshToken) {
-      throw new Error('Steam did not return a refresh token; cannot save this session.');
-    }
-
-    // Asked only once the login worked, so a failed attempt does not waste it.
-    let passphrase = config.passphrase;
-    if (!passphrase) {
-      passphrase =
-        (await promptSecret('Passphrase to encrypt the saved token (blank for none): ')) || null;
-    }
-
-    await saveSession(
-      config.credentialsPath,
-      {
-        steamId: result.steamId,
-        accountName,
-        refreshToken: result.refreshToken,
-        savedAt: new Date().toISOString(),
-      },
-      passphrase,
-    );
-
-    log.info(`Signed in as ${result.steamId}.`);
-    log.info(
-      passphrase
-        ? `Encrypted refresh token saved to ${config.credentialsPath}`
-        : `Refresh token saved unencrypted (owner-only) to ${config.credentialsPath}`,
-    );
-    log.info('Run `cs2inv sync` next.');
-  } finally {
-    gc.disconnect();
+  // Asked only once the login worked, so a failed attempt does not waste it.
+  let passphrase = config.passphrase;
+  if (!passphrase) {
+    passphrase =
+      (await promptSecret('Passphrase to encrypt the saved token (blank for none): ')) || null;
   }
+
+  await saveSession(
+    config.credentialsPath,
+    {
+      steamId: result.steamId,
+      accountName,
+      refreshToken: result.refreshToken,
+      savedAt: new Date().toISOString(),
+    },
+    passphrase,
+  );
+
+  log.info(`Signed in as ${result.steamId}.`);
+  log.info(
+    passphrase
+      ? `Encrypted refresh token saved to ${config.credentialsPath}`
+      : `Refresh token saved unencrypted (owner-only) to ${config.credentialsPath}`,
+  );
+  log.info(`Run \`${cmd()} sync\` next.`);
   exitWhenFlushed(0);
 }
 
+/**
+ * Loads the saved session, asking for the passphrase when one is needed and
+ * none was supplied through the environment. Logging in stores the passphrase
+ * nowhere, so an interactive unlock is the normal path rather than the
+ * exception.
+ */
+async function unlockSession(config: Config): Promise<StoredSession | null> {
+  const encrypted = await isSessionEncrypted(config.credentialsPath);
+  if (encrypted === null) return null;
+  if (!encrypted) return loadSession(config.credentialsPath, null);
+  if (config.passphrase) return loadSession(config.credentialsPath, config.passphrase);
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const passphrase = await promptSecret('Passphrase for the saved Steam session: ');
+    try {
+      return await loadSession(config.credentialsPath, passphrase || null);
+    } catch (error) {
+      if (!(error instanceof SessionLockedError) || attempt === 3) throw error;
+      log.warn('That passphrase did not work.');
+    }
+  }
+  return null;
+}
+
 async function commandSync(config: Config, args: Args): Promise<void> {
-  const session = await loadSession(config.credentialsPath, config.passphrase);
+  const session = await unlockSession(config);
   if (!session) {
-    log.error('No saved Steam session. Run `cs2inv login` first.');
+    log.error(`No saved Steam session. Run \`${cmd()} login\` first.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  // Checked here so an unusable token reads as "sign in again" rather than
+  // surfacing as a decode error from inside the Steam client.
+  const token = inspectRefreshToken(session.refreshToken);
+  if (!token.valid) {
+    log.error(`Cannot use the saved Steam session: ${token.problem}.`);
+    log.error(`Run \`${cmd()} login\` to sign in again.`);
     process.exitCode = 1;
     return;
   }
@@ -217,7 +263,7 @@ async function commandSync(config: Config, args: Args): Promise<void> {
     log.info('logging in to Steam');
     const { steamId } = await gc.loginWithRefreshToken(session.refreshToken).catch((error: unknown) => {
       throw new Error(
-        `${describeLoginError(error)} If the saved session has expired, run \`cs2inv login\` again.`,
+        `${describeLoginError(error)} If the saved session has expired, run \`${cmd()} login\` again.`,
       );
     });
     const summary = await runSync({ db, gc, catalog, steamId, onProgress });
@@ -240,7 +286,7 @@ async function commandSync(config: Config, args: Args): Promise<void> {
     }
     if (summary.unresolved > 0) {
       log.warn(
-        `${summary.unresolved} items could not be named. Run \`cs2inv catalog --force\` to refresh the schema.`,
+        `${summary.unresolved} items could not be named. Run \`${cmd()} catalog --force\` to refresh the schema.`,
       );
     }
     if (summary.failedContainers > 0) {
@@ -319,7 +365,7 @@ function commandContainers(config: Config, args: Args): void {
       return;
     }
     if (containers.length === 0) {
-      log.info('No storage units found. Run `cs2inv sync` first.');
+      log.info(`No storage units found. Run \`${cmd()} sync\` first.`);
       return;
     }
     for (const container of containers) {
@@ -438,7 +484,7 @@ async function main(): Promise<void> {
 
   switch (args.command) {
     case 'login':
-      await commandLogin(config);
+      await commandLogin(config, args);
       break;
     case 'logout':
       await clearSession(config.credentialsPath);
@@ -469,7 +515,7 @@ async function main(): Promise<void> {
       await commandServe(config);
       break;
     default:
-      process.stdout.write(USAGE);
+      process.stdout.write(usage());
       if (args.command !== 'help') process.exitCode = 1;
   }
 }

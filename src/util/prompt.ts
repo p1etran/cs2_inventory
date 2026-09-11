@@ -33,18 +33,45 @@ function terminal(): PromptStreams {
  * The question is handed to readline rather than written ourselves: on a real
  * terminal readline clears the current line before it draws, so anything we
  * print first is wiped and the prompt appears to hang with no visible text.
+ *
+ * Pass a signal to take the prompt down from elsewhere -- used when a login is
+ * approved on a phone while the code prompt is still open.
  */
-export function prompt(question: string, streams: PromptStreams = terminal()): Promise<string> {
+export function prompt(
+  question: string,
+  streams: PromptStreams = terminal(),
+  signal?: AbortSignal,
+): Promise<string> {
   return new Promise((resolve, reject) => {
-    const rl = readline.createInterface({ input: streams.input, output: streams.output });
-    rl.once('SIGINT', () => {
-      rl.close();
+    if (signal?.aborted) {
       reject(new PromptCancelled());
-    });
-    rl.question(question, (answer) => {
+      return;
+    }
+
+    const rl = readline.createInterface({ input: streams.input, output: streams.output });
+
+    let settled = false;
+    const done = (finish: () => void): void => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener('abort', onAbort);
       rl.close();
-      resolve(answer.trim());
-    });
+      finish();
+    };
+
+    function onAbort(): void {
+      done(() => {
+        streams.output.write('\n');
+        reject(new PromptCancelled());
+      });
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    rl.once('SIGINT', () => done(() => reject(new PromptCancelled())));
+    // Closing without an answer means end of input, e.g. stdin reached EOF.
+    // Rejecting keeps callers from looping on an endless run of empty answers.
+    rl.once('close', () => done(() => reject(new PromptCancelled())));
+    rl.question(question, (answer) => done(() => resolve(answer.trim())));
   });
 }
 

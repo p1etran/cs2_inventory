@@ -239,3 +239,65 @@ describe('confirm', () => {
     }
   });
 });
+
+describe('consecutive prompts on one stream', () => {
+  it('leaves stdin readable for the prompt that follows a secret', async () => {
+    const io = harness({ isTTY: true });
+
+    const secret = promptSecret('Steam password: ', io.streams);
+    await tick();
+    io.send('hunter2\r');
+    expect(await secret).toBe('hunter2');
+
+    // The secret prompt hands the stream back paused; readline must still be
+    // able to read from it. Verified against a pty as well as this harness.
+    const code = prompt('Steam Guard code: ', io.streams);
+    await tick();
+    io.send('12345\n');
+    expect(await code).toBe('12345');
+  });
+
+  it('supports two secrets in a row', async () => {
+    const io = harness({ isTTY: true });
+
+    const first = promptSecret('password: ', io.streams);
+    await tick();
+    io.send('one\r');
+    expect(await first).toBe('one');
+
+    const second = promptSecret('passphrase: ', io.streams);
+    await tick();
+    io.send('two\r');
+    expect(await second).toBe('two');
+  });
+});
+
+describe('prompt cancellation via signal', () => {
+  it('takes the prompt down when the signal aborts', async () => {
+    const io = harness({ isTTY: false });
+    const controller = new AbortController();
+    const answer = prompt('Steam Guard code: ', io.streams, controller.signal);
+    await tick();
+
+    controller.abort();
+    await expect(answer).rejects.toBeInstanceOf(PromptCancelled);
+  });
+
+  it('rejects immediately when the signal is already aborted', async () => {
+    const io = harness({ isTTY: false });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(prompt('code: ', io.streams, controller.signal)).rejects.toBeInstanceOf(
+      PromptCancelled,
+    );
+  });
+
+  it('still resolves normally when the signal never fires', async () => {
+    const io = harness({ isTTY: false });
+    const controller = new AbortController();
+    const answer = prompt('code: ', io.streams, controller.signal);
+    await tick();
+    io.send('98765\n');
+    expect(await answer).toBe('98765');
+  });
+});
