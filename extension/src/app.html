@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS2 Inventory</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 20px 40px;
+    background: #12141a; color: #e6e8ee;
+    font: 14px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header { padding: 18px 0 14px; border-bottom: 1px solid #2c313d; margin-bottom: 18px; }
+  h1 { margin: 0 0 4px; font-size: 16px; letter-spacing: .02em; }
+  header p { margin: 0; color: #8d94a5; font-size: 13px; }
+  button {
+    padding: 8px 15px; border-radius: 8px; border: 1px solid #2c313d;
+    background: #21252f; color: #e6e8ee; cursor: pointer; font-size: 13px;
+  }
+  button:hover:not(:disabled) { border-color: #6fa8ff; }
+  button:disabled { opacity: .5; cursor: default; }
+  #account { margin: 16px 0; font-size: 15px; }
+  #account b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  #log {
+    margin: 14px 0 0; padding: 12px 14px; border: 1px solid #2c313d; border-radius: 8px;
+    background: #1a1d26; max-height: 460px; overflow-y: auto; white-space: pre-wrap;
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .ok { color: #7bd88f; } .bad { color: #ff6b6b; } .dim { color: #8d94a5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CS2 Inventory</h1>
+  <p>Milestone 2a: connect to Steam and log on using the session already in this browser.</p>
+</header>
+<button id="connect">Connect to Steam</button>
+<div id="account"></div>
+<pre id="log" class="dim">Press "Connect to Steam".</pre>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

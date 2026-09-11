@@ -23,7 +23,11 @@ class FakeSession extends EventEmitter {
     this.remaining = options.rejectCodes ?? 0;
   }
 
-  async startWithCredentials(): Promise<{
+  async startWithCredentials(_details: {
+    accountName: string;
+    password: string;
+    steamGuardCode?: string;
+  }): Promise<{
     actionRequired: boolean;
     validActions?: { type: number; detail?: string }[];
   }> {
