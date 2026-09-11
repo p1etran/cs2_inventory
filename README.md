@@ -174,6 +174,19 @@ resolves the patched `protobufjs` 7.x. `npm audit fix --force` "resolves" them
 by downgrading to `steam-user@3.15.0`, which `globaloffensive` v3 cannot use, so
 that fix is not applied here.
 
+## Where this is going
+
+The install-and-build step above is the main thing standing between this and
+being usable by anyone else, and the password prompt is where a cautious person
+stops. A browser extension removes both: it can borrow the Steam session
+already in your browser, so it needs no password, no Steam Guard code and no
+server. A plain website cannot, because no web page may read
+`steamcommunity.com` cookies.
+
+Two things have to hold for that to work, and `extension-spike/` is a
+dependency-free, read-only extension that checks them in about two minutes. See
+`extension-spike/README.md`.
+
 ## Not included
 
 Prices. The item list came first; valuation can sit on top of it later, since
