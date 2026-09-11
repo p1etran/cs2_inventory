@@ -1,48 +1,53 @@
 # Feasibility spike
 
-A throwaway, read-only extension that answers the two questions the whole
-browser-extension plan rests on. Nothing else should be built until both pass.
+A throwaway, read-only extension that answers the questions the whole
+browser-extension plan rests on.
 
-## Why this exists
+## What is settled
 
-Reading storage-unit contents needs an authenticated CS2 game-coordinator
-session. A website cannot get one without asking you for a password or a pasted
-token, because no web page may read `steamcommunity.com` cookies. An extension
-can borrow the session already in your browser — **if** two things hold:
+**A usable refresh token is readable from the browser. PASSED.**
+A run on a real account found `steamRefresh_steam` on
+`login.steampowered.com`, issued by `steam`, valid for another 54 days.
+Signing in needs **no password and no Steam Guard code** — the session already
+in the browser is enough. This is the result that makes the product feel safe,
+and it is now measured rather than assumed.
 
-1. A usable Steam **refresh token** is readable from the browser's cookies.
-   That token is what replaces the password, so no Steam Guard code is needed
-   either.
-2. Steam's **CM servers accept a WebSocket from an extension origin**. RFC 6455
-   leaves origin checking up to the server, so this cannot be settled from
-   documentation — it has to be tried.
+**WebSockets work from an extension page. PASSED.**
+A control connection to a public echo host opened in 458ms.
 
-## Status
+**Steam's CM refuses a `chrome-extension://` origin.**
+All four correctly-selected endpoints (`type: websockets`, `realm:
+steamglobal`, port 443) closed with code 1006 in 141–177ms. That is fast
+enough that Steam answered and refused, rather than the connection failing to
+establish. The certificate is not the cause: the real cert is
+`*.steamserver.net`, valid for those hosts.
 
-**Question 1: answered, yes.** A run on a real account found
-`steamRefresh_steam` on `login.steampowered.com`, issued by `steam`, valid for
-54 more days. Signing in needs no password and no Steam Guard code.
+## The open question
 
-**Question 2: still open.** The first revision got this wrong. It read each
-server's `endpoint` field and ignored the rest of the record, so it fed TCP
-endpoints (ports 27019–27024) to a `wss://` URL and read the resulting failures
-as a rejection by Steam. Steam's directory mixes transports; a real client
-filters on `realm == "steamglobal"` and `type == "websockets"`, and anything
-that can only make ordinary HTTPS-shaped connections — a browser included —
-also wants port 443. That last rule is `steam-user`'s `webCompatibilityMode`,
-documented for use "through a firewall or a proxy".
+Browsers force an `Origin` header onto every WebSocket handshake and page
+JavaScript cannot remove it. Steam appears not to like ours. This revision
+tries the two things an extension can do that a web page cannot:
 
-This revision selects endpoints that way and adds a **control connection** to a
-known-good public WebSocket host. Without the control, "Steam refused us" and
-"WebSockets do not work here at all" look identical, which is what made the
-first run inconclusive.
+- **Test A** — strip the `Origin` header outright with a declarative request
+  rule. Chrome has been confirmed to accept such a rule for `websocket`
+  requests, so this genuinely runs.
+- **Test B** — open the socket from inside a `steamcommunity.com` tab, in the
+  page's own world, so the handshake carries `Origin:
+  https://steamcommunity.com` — one of Steam's own.
+
+**Test B is the likelier winner.** The competing extension describes itself as
+working "through Steam Community in your browser", which reads as a literal
+description of this technique. If B is what works, it is also a point in
+favour of the extension over a website, because a website could never do it.
 
 ## Run it
 
-1. Open `chrome://extensions`, turn on **Developer mode** (top right).
-2. Click **Load unpacked** and pick this `extension-spike` folder. If it is
-   already loaded from a previous run, click its **reload** icon instead.
-3. Make sure you are logged in to `steamcommunity.com` in this browser.
+1. **Open `steamcommunity.com` in another tab** and leave it open, or Test B
+   will be skipped.
+2. Open `chrome://extensions`, turn on **Developer mode** (top right).
+3. Click **Load unpacked** and pick this folder — or press its **reload** icon
+   if it is already loaded. The permissions changed in this revision, so a
+   reload is required.
 4. Click the extension's icon, then **Run checks**.
 5. Click **Copy report** and send it over.
 
@@ -53,27 +58,28 @@ No build step, no `npm install`.
 - Reads two cookies, calls Steam's public server-list endpoint, and opens
   WebSockets which it closes again immediately **without sending any
   protocol**.
-- **Never prints a token.** Only claim metadata is shown: the issuer, the
-  account id, and the expiry date.
-- Sends nothing anywhere. There is no server involved, and no analytics.
+- **Never prints a token.** Only claim metadata: issuer, account id, expiry.
+- Sends nothing anywhere. No server, no analytics.
+- Registers one request rule, scoped to `steamserver.net` sockets, and removes
+  it again in a `finally` block.
+- Injects one function into a `steamcommunity.com` tab, which opens a socket
+  and closes it. It reads nothing from the page.
 - Does not touch your inventory, and cannot: reading items needs protocol work
   this spike deliberately leaves out.
 
-You can verify all of that — `popup.js` is plain JavaScript with no
-dependencies and no build step, so what you load is what you read.
-
-The two `wss://` echo hosts in the manifest are there purely for the control
-connection and are contacted with an empty socket that is closed at once.
+`popup.js` is plain JavaScript with no dependencies and no build step, so what
+you load is what you read.
 
 ## Reading the result
 
-- **Steam accepted a WebSocket** — both gates pass, and the plan proceeds to
-  making the shared core browser-safe.
-- **Control worked but every Steam attempt failed** — a real finding about
-  Steam, and it changes the plan. Send the report.
-- **Control also failed** — inconclusive, and nothing has been learned about
-  Steam. Something local is blocking WebSocket traffic: check for a firewall,
-  proxy or VPN, then re-run.
-- **No steamglobal WebSocket servers listed** — the directory returned a shape
-  we did not expect. The report prints the type and realm tallies plus a sample
-  record, which is enough to work out what changed.
+The verdict names which route worked, and each implies a different shape:
+
+- **Direct** — simplest possible: no header rules, no page injection.
+- **Origin stripped (A)** — the extension declares one request rule and
+  connects from its own service worker.
+- **From a Steam tab (B)** — the reader runs inside a Steam tab. Viable, and
+  it explains how the competitor works.
+- **All three refused, control passed** — Steam rejects browser-originated
+  sockets and the approach needs rethinking. That is a real finding, not a
+  setback to work around.
+- **Control failed** — inconclusive; something local is blocking WebSockets.

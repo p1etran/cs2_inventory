@@ -1,22 +1,27 @@
 /**
  * Feasibility spike for running the CS2 inventory reader as a browser
- * extension. It answers the questions the whole approach rests on:
+ * extension.
  *
- *   1. Is a usable Steam refresh token readable from this browser's session?
- *      If yes, signing in needs no password and no Steam Guard code.
- *   2. Will Steam's CM servers accept a WebSocket from an extension origin?
- *      RFC 6455 leaves origin checking to the server, so this must be tested.
+ * Settled so far:
+ *   - A usable Steam refresh token IS readable from the browser's cookies, so
+ *     signing in needs no password and no Steam Guard code.
+ *   - WebSockets work from an extension page (proved with a control host), but
+ *     Steam's CM closes the handshake in ~150ms from a chrome-extension://
+ *     origin. Fast enough that Steam answered and refused.
  *
- * Deliberately read-only: it opens sockets and closes them again without
- * sending a single byte of protocol, and it never prints a token. Only claim
- * metadata (issuer, account id, expiry) is shown.
+ * Open question: what origin will Steam accept? Browsers always send an Origin
+ * header on a WebSocket handshake and page JavaScript cannot remove it, so
+ * this revision tries the two things an extension can do that a page cannot:
  *
- * The first revision of this spike got question 2 wrong. It read each server's
- * `endpoint` and ignored the rest of the record, so it fed TCP endpoints to a
- * wss:// URL and read the resulting failures as a rejection. Selection now
- * matches what a real client does, and a control connection to a known-good
- * host distinguishes "Steam refused us" from "the connection never had a
- * chance".
+ *   A. Strip the Origin header outright with declarativeNetRequest.
+ *   B. Open the socket from inside a steamcommunity.com tab, so Steam sees
+ *      Origin: https://steamcommunity.com -- one of its own.
+ *
+ * B is the likelier of the two: the competing extension describes itself as
+ * working "through Steam Community in your browser", which reads as literal.
+ *
+ * Still read-only. Sockets are opened and closed without sending any protocol,
+ * and no token is ever printed.
  */
 
 const logEl = document.getElementById('log');
@@ -40,6 +45,8 @@ const warn = (t) => write(`  WARN  ${t}`, 'warn');
 const note = (t) => write(`        ${t}`, 'dim');
 const heading = (t) => write(`\n${t}`);
 
+const ORIGIN_RULE_ID = 1001;
+
 /** Reads one cookie, including httpOnly ones, which only an extension can do. */
 function getCookie(url, name) {
   return new Promise((resolve) => {
@@ -47,10 +54,6 @@ function getCookie(url, name) {
   });
 }
 
-/**
- * Decodes a JWT's claims. Steam refresh tokens are JWTs whose payload names
- * the issuer, the account, and the expiry.
- */
 function decodeClaims(jwt) {
   const parts = jwt.split('.');
   if (parts.length !== 3) return null;
@@ -81,26 +84,18 @@ async function checkLoggedIn() {
     note('Log in at steamcommunity.com in this browser, then run this again.');
     return null;
   }
-
   const { steamId } = splitSteamCookie(cookie.value);
   ok(`Logged in to Steam Community${steamId ? ` as ${steamId}` : ''}.`);
   return steamId;
 }
 
-/**
- * The decisive auth check. A "remember me" login leaves a long-lived refresh
- * token on login.steampowered.com. Only a token issued by "steam" is accepted
- * for a client login; the web access token in steamLoginSecure is not.
- */
 async function checkRefreshToken() {
   heading('2. Refresh token (this is what replaces the password)');
 
-  const candidates = [
+  for (const [url, name] of [
     ['https://login.steampowered.com', 'steamRefresh_steam'],
     ['https://steamcommunity.com', 'steamRefresh_steam'],
-  ];
-
-  for (const [url, name] of candidates) {
+  ]) {
     const cookie = await getCookie(url, name);
     if (!cookie) continue;
 
@@ -111,25 +106,20 @@ async function checkRefreshToken() {
       continue;
     }
 
-    note(`Found ${name} on ${new URL(url).host}.`);
     note(`issuer: ${claims.iss ?? '(none)'}   account: ${claims.sub ?? steamId ?? '(none)'}`);
     if (claims.exp) {
       const expires = new Date(claims.exp * 1000);
-      const days = Math.round((expires - Date.now()) / 86400000);
-      note(`expires: ${expires.toISOString().slice(0, 10)} (${days} days)`);
+      note(`expires: ${expires.toISOString().slice(0, 10)}`);
     }
-
     if (claims.iss === 'steam') {
-      ok('This is a usable Steam refresh token. No password needed.');
+      ok('Usable Steam refresh token. No password needed.');
       return true;
     }
-    warn(`Issuer is "${claims.iss}", not "steam", so a client login would reject it.`);
+    warn(`Issuer is "${claims.iss}", not "steam".`);
   }
 
   bad('No usable refresh token found.');
-  note('Most likely cause: you did not tick "Remember me" when logging in to Steam.');
-  note('Fix: sign out of Steam in this browser, sign in again with "Remember me"');
-  note('ticked, then run this check again.');
+  note('Most likely you did not tick "Remember me" when logging in to Steam.');
   return false;
 }
 
@@ -142,19 +132,11 @@ function tally(items, key) {
   return [...counts].map(([value, n]) => `${value}=${n}`).join('  ');
 }
 
-/**
- * Steam publishes its CM servers through this directory. The list mixes
- * transports, so the records have to be filtered the way a real client does:
- * realm "steamglobal", type "websockets", and — for anything that can only
- * make ordinary HTTPS-shaped connections, which includes a browser — port 443.
- * That last rule is steam-user's `webCompatibilityMode`.
- */
 async function fetchCmServers() {
   heading('3. Steam CM server list');
 
   const url =
     'https://api.steampowered.com/ISteamDirectory/GetCMListForConnect/v1/?cellid=0&cmtype=websockets';
-
   let servers;
   try {
     const response = await fetch(url);
@@ -162,8 +144,7 @@ async function fetchCmServers() {
       bad(`Directory returned HTTP ${response.status}.`);
       return [];
     }
-    const body = await response.json();
-    const raw = body?.response?.serverlist ?? [];
+    const raw = (await response.json())?.response?.serverlist ?? [];
     servers = Array.isArray(raw) ? raw : Object.values(raw);
   } catch (error) {
     bad(`Could not reach the directory: ${error.message}`);
@@ -176,37 +157,23 @@ async function fetchCmServers() {
   }
 
   ok(`${servers.length} servers listed.`);
-  note(`by type:  ${tally(servers, 'type')}`);
-  note(`by realm: ${tally(servers, 'realm')}`);
-
-  const sample = servers[0];
-  if (sample) note(`sample record: ${JSON.stringify(sample)}`);
+  note(`by type: ${tally(servers, 'type')}   by realm: ${tally(servers, 'realm')}`);
 
   const websockets = servers.filter(
     (s) => s.realm === 'steamglobal' && s.type === 'websockets' && s.endpoint,
   );
   const on443 = websockets.filter((s) => s.endpoint.endsWith(':443'));
-
   note(`steamglobal websockets: ${websockets.length}, of those on :443: ${on443.length}`);
 
   if (websockets.length === 0) {
     bad('No steamglobal WebSocket servers in the list.');
-    note('The previous run failed because it ignored these fields and tried');
-    note('TCP endpoints instead.');
     return [];
   }
-
-  // Prefer 443, but keep the rest as a fallback so the report shows whether
-  // the port is what matters.
   const ordered = [...on443, ...websockets.filter((s) => !s.endpoint.endsWith(':443'))];
-  note(`will try: ${ordered.slice(0, 4).map((s) => s.endpoint).join(', ')}`);
   return ordered.map((s) => s.endpoint);
 }
 
-/**
- * Opens a socket and closes it immediately. No protocol is spoken. Timing
- * matters: an instant close and a timeout mean different things.
- */
+/** Opens a socket and closes it at once. No protocol is spoken. */
 function tryWebSocket(url, timeoutMs = 8000) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
@@ -219,7 +186,6 @@ function tryWebSocket(url, timeoutMs = 8000) {
       resolve({ opened: false, detail: `refused to construct: ${error.message}` });
       return;
     }
-
     const timer = setTimeout(() => {
       socket.close();
       resolve({ opened: false, detail: `no response, timed out after ${elapsed()}` });
@@ -231,93 +197,246 @@ function tryWebSocket(url, timeoutMs = 8000) {
       socket.close(1000);
       resolve({ opened: true, detail });
     };
-
     socket.onclose = (event) => {
       clearTimeout(timer);
       resolve({ opened: false, detail: `closed with code ${event.code} after ${elapsed()}` });
     };
-
-    socket.onerror = () => {
-      // onclose always follows and carries the more useful code.
-    };
+    socket.onerror = () => {};
   });
 }
 
-/**
- * Control test. Without this, a Steam failure cannot be told apart from
- * WebSockets simply not working from an extension page — which is exactly the
- * ambiguity that made the previous run inconclusive.
- */
 async function checkControl() {
   heading('4. Control: can this extension open any WebSocket at all?');
   note(`Extension origin: ${location.origin}`);
 
-  const controls = ['wss://ws.postman-echo.com/raw', 'wss://echo.websocket.org'];
-
-  for (const url of controls) {
+  for (const url of ['wss://ws.postman-echo.com/raw', 'wss://echo.websocket.org']) {
     const { opened, detail } = await tryWebSocket(url);
     if (opened) {
-      ok(`WebSockets work from this extension (${new URL(url).host}, ${detail}).`);
+      ok(`WebSockets work here (${new URL(url).host}, ${detail}).`);
       return true;
     }
     warn(`${new URL(url).host}: ${detail}`);
   }
-
-  bad('No control WebSocket opened either.');
-  note('So a Steam failure below would not prove anything about Steam — check');
-  note('for a firewall, proxy or VPN blocking WebSocket traffic.');
+  bad('No control WebSocket opened. Nothing below will prove anything.');
   return false;
 }
 
-async function checkSteamWebSocket(endpoints, controlWorked) {
-  heading('5. WebSocket handshake to Steam CM');
+/**
+ * Does the endpoint answer ordinary HTTPS? A non-upgrade GET should be
+ * refused by the server rather than by the network, which confirms the host
+ * and path are real and that we are reaching Steam at all.
+ */
+async function checkReachable(endpoint) {
+  const host = endpoint.replace(/:443$/, '');
+  try {
+    const response = await fetch(`https://${host}/cmsocket/`, { method: 'GET' });
+    note(`plain HTTPS GET to ${host}/cmsocket/ answered HTTP ${response.status}`);
+  } catch (error) {
+    note(`plain HTTPS GET to ${host}/cmsocket/ failed: ${error.message}`);
+  }
+}
+
+async function checkFromExtensionOrigin(endpoints) {
+  heading('5. Steam CM, straight from the extension origin');
 
   if (endpoints.length === 0) {
-    warn('Skipped: no usable WebSocket endpoints to try.');
+    warn('Skipped: no usable endpoints.');
     return false;
   }
+  await checkReachable(endpoints[0]);
 
-  for (const endpoint of endpoints.slice(0, 4)) {
+  for (const endpoint of endpoints.slice(0, 2)) {
     const { opened, detail } = await tryWebSocket(`wss://${endpoint}/cmsocket/`);
     if (opened) {
-      ok(`Steam accepted a WebSocket from this extension (${endpoint}, ${detail}).`);
+      ok(`Accepted (${endpoint}, ${detail}).`);
       return true;
     }
     warn(`${endpoint}: ${detail}`);
   }
-
-  bad('No CM server accepted a WebSocket from this extension.');
-  if (controlWorked) {
-    note('The control connection worked, so WebSockets are fine here and this');
-    note('is specific to Steam. That would be a real finding.');
-  } else {
-    note('The control also failed, so this is inconclusive — something local is');
-    note('blocking WebSocket traffic.');
-  }
+  note('Expected to fail: this is the baseline the two tests below try to beat.');
   return false;
 }
 
-function verdict({ token, control, steam }) {
+/**
+ * Test A. Browsers force an Origin header onto every WebSocket handshake and
+ * page JavaScript cannot remove it -- but an extension can, through the
+ * declarative request rules. If Steam only dislikes the extension origin,
+ * sending none at all may be enough.
+ */
+async function checkWithOriginStripped(endpoints) {
+  heading('6. Test A: same, with the Origin header stripped');
+
+  if (endpoints.length === 0) {
+    warn('Skipped: no usable endpoints.');
+    return false;
+  }
+  if (!chrome.declarativeNetRequest?.updateDynamicRules) {
+    warn('Skipped: declarativeNetRequest is unavailable.');
+    return false;
+  }
+
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [ORIGIN_RULE_ID],
+      addRules: [
+        {
+          id: ORIGIN_RULE_ID,
+          priority: 1,
+          action: {
+            type: 'modifyHeaders',
+            requestHeaders: [{ header: 'Origin', operation: 'remove' }],
+          },
+          condition: { requestDomains: ['steamserver.net'], resourceTypes: ['websocket'] },
+        },
+      ],
+    });
+    note('Rule registered: Origin will be removed for steamserver.net sockets.');
+  } catch (error) {
+    warn(`Could not register the rule: ${error.message}`);
+    note('That itself is useful: it means this route is not available.');
+    return false;
+  }
+
+  try {
+    for (const endpoint of endpoints.slice(0, 2)) {
+      const { opened, detail } = await tryWebSocket(`wss://${endpoint}/cmsocket/`);
+      if (opened) {
+        ok(`Accepted with no Origin header (${endpoint}, ${detail}).`);
+        return true;
+      }
+      warn(`${endpoint}: ${detail}`);
+    }
+    bad('Still refused with the Origin header removed.');
+    return false;
+  } finally {
+    await chrome.declarativeNetRequest
+      .updateDynamicRules({ removeRuleIds: [ORIGIN_RULE_ID] })
+      .catch(() => {});
+  }
+}
+
+/**
+ * Test B. Run the socket from inside a steamcommunity.com tab, in the page's
+ * own world, so the handshake carries Origin: https://steamcommunity.com. If
+ * Steam accepts only its own origins, this is the route that works -- and it
+ * is one a plain website could never take.
+ */
+async function checkFromSteamTab(endpoints) {
+  heading('7. Test B: same, from inside a steamcommunity.com tab');
+
+  if (endpoints.length === 0) {
+    warn('Skipped: no usable endpoints.');
+    return false;
+  }
+  if (!chrome.scripting?.executeScript) {
+    warn('Skipped: the scripting API is unavailable.');
+    return false;
+  }
+
+  const tabs = await chrome.tabs.query({ url: '*://steamcommunity.com/*' });
+  if (tabs.length === 0) {
+    warn('Skipped: no steamcommunity.com tab is open.');
+    note('Open steamcommunity.com in another tab, then run this again.');
+    return false;
+  }
+  note(`Using tab: ${tabs[0].url?.slice(0, 70)}`);
+
+  for (const endpoint of endpoints.slice(0, 2)) {
+    let result;
+    try {
+      const [injected] = await chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        world: 'MAIN',
+        args: [`wss://${endpoint}/cmsocket/`],
+        func: (url) =>
+          new Promise((resolve) => {
+            const startedAt = Date.now();
+            const elapsed = () => `${Date.now() - startedAt}ms`;
+            let socket;
+            try {
+              socket = new WebSocket(url);
+            } catch (error) {
+              resolve({ opened: false, detail: `construct failed: ${error.message}` });
+              return;
+            }
+            const timer = setTimeout(() => {
+              socket.close();
+              resolve({ opened: false, detail: `timed out after ${elapsed()}`, origin: location.origin });
+            }, 8000);
+            socket.onopen = () => {
+              clearTimeout(timer);
+              const detail = `opened in ${elapsed()}`;
+              socket.close(1000);
+              resolve({ opened: true, detail, origin: location.origin });
+            };
+            socket.onclose = (event) => {
+              clearTimeout(timer);
+              resolve({
+                opened: false,
+                detail: `closed with code ${event.code} after ${elapsed()}`,
+                origin: location.origin,
+              });
+            };
+            socket.onerror = () => {};
+          }),
+      });
+      result = injected?.result;
+    } catch (error) {
+      warn(`Could not run in the tab: ${error.message}`);
+      return false;
+    }
+
+    if (!result) {
+      warn(`${endpoint}: the injected test returned nothing.`);
+      continue;
+    }
+    if (result.opened) {
+      ok(`Accepted from ${result.origin} (${endpoint}, ${result.detail}).`);
+      return true;
+    }
+    warn(`${endpoint} as ${result.origin ?? 'unknown origin'}: ${result.detail}`);
+  }
+
+  bad('Refused from a steamcommunity.com origin too.');
+  return false;
+}
+
+function verdict({ token, control, direct, stripped, steamTab }) {
   heading('Verdict');
 
-  if (token && steam) {
-    write('  Both gates pass. The extension approach is viable:', 'ok');
-    write('  no password, no Steam Guard code, and no server of ours.', 'ok');
+  if (!control) {
+    write('  Inconclusive: WebSockets do not work here at all, so Steam was', 'warn');
+    write('  never really tested. Check for a firewall, proxy or VPN.', 'warn');
     return;
   }
-  if (token && !steam && !control) {
-    write('  Inconclusive. The token gate passes, but WebSockets do not work', 'warn');
-    write('  here at all, so Steam was never really tested. Check for a', 'warn');
-    write('  firewall, proxy or VPN, then re-run.', 'warn');
+  if (!token) {
+    write('  The token gate failed, which matters more than the rest.', 'bad');
     return;
   }
-  if (token && !steam && control) {
-    write('  The token gate passes, but Steam refused every WebSocket while a', 'bad');
-    write('  control connection succeeded. Send this report — it changes the plan.', 'bad');
+
+  if (direct) {
+    write('  Steam accepts the extension origin directly. Simplest possible', 'ok');
+    write('  shape: no header rules, no page injection.', 'ok');
     return;
   }
-  write(`  token ${token ? 'OK' : 'FAILED'}, control ${control ? 'OK' : 'FAILED'}, steam ${steam ? 'OK' : 'FAILED'}.`, 'warn');
-  write('  Send me this report.', 'warn');
+  if (stripped) {
+    write('  Steam accepts the socket once the Origin header is removed.', 'ok');
+    write('  Viable: the extension declares one request rule and connects', 'ok');
+    write('  from its own service worker.', 'ok');
+    return;
+  }
+  if (steamTab) {
+    write('  Steam accepts a socket opened from a steamcommunity.com tab.', 'ok');
+    write('  Viable, and it explains how the competing extension works. The', 'ok');
+    write('  extension would run its reader inside a Steam tab. Worth noting:', 'ok');
+    write('  a plain website could never do this, so this route is', 'ok');
+    write('  extension-only.', 'ok');
+    return;
+  }
+
+  write('  All three routes refused while the control succeeded. Steam is', 'bad');
+  write('  rejecting browser-originated sockets, and the extension approach', 'bad');
+  write('  needs rethinking. Send this report.', 'bad');
 }
 
 async function run() {
@@ -331,8 +450,10 @@ async function run() {
     const token = await checkRefreshToken();
     const endpoints = await fetchCmServers();
     const control = await checkControl();
-    const steam = await checkSteamWebSocket(endpoints, control);
-    verdict({ token, control, steam });
+    const direct = await checkFromExtensionOrigin(endpoints);
+    const stripped = direct ? false : await checkWithOriginStripped(endpoints);
+    const steamTab = direct || stripped ? false : await checkFromSteamTab(endpoints);
+    verdict({ token, control, direct, stripped, steamTab });
   } catch (error) {
     bad(`Unexpected failure: ${error.message}`);
   } finally {
