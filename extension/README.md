@@ -5,16 +5,20 @@ and without a server.
 
 ## Where this is up to
 
-**Milestone 2a: connect to Steam and log on.** The extension opens a page,
-reads the Steam session already in your browser, connects to a Steam
-connection manager over a WebSocket, and logs on. It reports the account it
-logged on as, and stops there.
+**Milestone 2b: read one storage unit.** The extension opens a page, reads the
+Steam session already in your browser, logs on to a Steam connection manager
+over a WebSocket, reaches the CS2 game coordinator, lists the account's storage
+units, and reads the contents of the fullest one -- naming each item through
+the same code the local CLI uses.
 
-Reading storage units comes next (milestone 2b). If 2a reports the right
-account then server selection, the `Origin` rule, message framing, protobuf
-decoding, Multi inflation and the logon exchange are all correct, so anything
-that fails afterwards belongs to the game coordinator rather than the
-connection.
+To check it, run `node dist/cli.js containers` for the same account and compare
+the item count and names. That comparison against the already-working Node path
+is the strongest correctness signal available, which is why the local app is
+worth keeping around during this work.
+
+Next is the full sync: a loop over every unit, with reads spaced and a unit
+that fails to read leaving its stored items untouched rather than reported as
+removed.
 
 ## Build and load
 
@@ -73,6 +77,21 @@ anything is encoded. `extension/scripts/gen-protos.mjs` therefore compiles a
 static module — plain encode/decode functions, no eval. This was found by
 loading the extension, not by reading about it.
 
+**A bundler renames anything that is not an export.** esbuild emits the
+generated `CMsgClientHello` class as `CMsgClientHello2` to avoid a collision,
+so `type.name` is `"CMsgClientHello2"` in the built extension. `encode` guards
+against misspelled field names — protobufjs drops an unrecognised key silently,
+which would send a message missing that value — and that guard looked the
+message up by `type.name`, so it found nothing and skipped the check in every
+build. Its unit test passed throughout, because vitest loads modules unbundled
+with the names intact.
+
+Two things came out of it. The lookup now goes through export names, which are
+the module's public surface and survive bundling. And `test/extension-bundle.test.ts`
+bundles before asserting, so anything that depends on a runtime name surviving
+the build is checked against the artifact that actually ships rather than
+against the source.
+
 ## Permissions, and why each is there
 
 | Permission | Why |
@@ -106,6 +125,7 @@ extension/
     background.ts     opens the page when the toolbar icon is clicked
     steam/
       cm.ts           connection manager client: connect, log on, heartbeat
+      gc.ts           game coordinator: shared object cache, storage unit reads
       frame.ts        net message framing, Multi inflation
       protos.ts       encode/decode helpers
       servers.ts      server selection

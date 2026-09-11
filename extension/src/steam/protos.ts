@@ -1,7 +1,9 @@
 import descriptor from '../generated/protos.json';
+import * as generated from '../generated/protos.js';
 import type { StaticMessageType } from '../generated/protos.js';
 
 export {
+  // Steam transport and logon
   CMsgClientAccountInfo,
   CMsgClientGamesPlayed,
   CMsgClientHeartBeat,
@@ -11,6 +13,15 @@ export {
   CMsgGCClient,
   CMsgMulti,
   CMsgProtoBufHeader,
+  // Game coordinator
+  CMsgCasketItem,
+  CMsgClientHello,
+  CMsgClientWelcome,
+  CMsgGCItemCustomizationNotification,
+  CMsgSOCacheSubscribed,
+  CMsgSOMultipleObjects,
+  CMsgSOSingleObject,
+  CSOEconItem,
 } from '../generated/protos.js';
 
 /**
@@ -37,13 +48,29 @@ interface DescriptorTree {
   nested?: Record<string, { fields?: Record<string, unknown> }>;
 }
 
-/** Field names per message, read off the descriptor rather than duplicated. */
-const FIELD_NAMES = new Map<string, Set<string>>(
-  Object.entries((descriptor as DescriptorTree).nested ?? {}).map(([name, type]) => [
+const NESTED = (descriptor as DescriptorTree).nested ?? {};
+
+/**
+ * Field names per message, read off the descriptor rather than duplicated.
+ *
+ * Keyed by the message object itself, not by `type.name`. A bundler is free to
+ * rename a class -- esbuild emits the generated `CMsgClientHello` as
+ * `CMsgClientHello2` to avoid a collision -- so `type.name` is
+ * `"CMsgClientHello2"` in the built extension and matches nothing. Export
+ * names survive, because they are the module's public surface, so the lookup
+ * goes through those instead. The guard was silently inert in every build
+ * until a probe running inside the extension caught it; a unit test could not,
+ * because vitest loads the module unbundled with the names intact.
+ */
+const FIELD_NAMES = new Map<StaticMessageType, { name: string; fields: Set<string> }>();
+for (const [name, exported] of Object.entries(generated)) {
+  const entry = NESTED[name];
+  if (!entry) continue;
+  FIELD_NAMES.set(exported as StaticMessageType, {
     name,
-    new Set(Object.keys(type.fields ?? {})),
-  ]),
-);
+    fields: new Set(Object.keys(entry.fields ?? {})),
+  });
+}
 
 /**
  * Encodes a message from a plain object.
@@ -57,14 +84,19 @@ const FIELD_NAMES = new Map<string, Set<string>>(
  * that value, and the mistake would surface only as Steam behaving oddly.
  */
 export function encode(type: StaticMessageType, fields: Record<string, unknown>): Uint8Array {
-  const known = FIELD_NAMES.get(type.name);
-  if (known) {
-    const unknown = Object.keys(fields).filter((key) => !known.has(key));
-    if (unknown.length > 0) {
-      throw new Error(
-        `${type.name}: unknown field${unknown.length > 1 ? 's' : ''} ${unknown.join(', ')}`,
-      );
-    }
+  const known = FIELD_NAMES.get(type);
+  // Not found means the descriptor and the static module have drifted apart,
+  // which is a build problem. Say so rather than skipping the check, since a
+  // skipped check is the thing this function exists to prevent.
+  if (!known) {
+    throw new Error(`No field list for ${type.name}; regenerate with \`npm run protos\`.`);
+  }
+
+  const unknown = Object.keys(fields).filter((key) => !known.fields.has(key));
+  if (unknown.length > 0) {
+    throw new Error(
+      `${known.name}: unknown field${unknown.length > 1 ? 's' : ''} ${unknown.join(', ')}`,
+    );
   }
   return type.encode(type.fromObject(fields)).finish();
 }

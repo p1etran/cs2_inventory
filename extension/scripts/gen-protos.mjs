@@ -43,6 +43,28 @@ const SOURCES = [
       'CMsgGCClient',
     ],
   },
+  {
+    // The game coordinator's own messages. globaloffensive ships these, and
+    // its protobufs directory has google/protobuf alongside them already.
+    file: 'node_modules/globaloffensive/protobufs/gcsdk_gcmessages.proto',
+    messages: [
+      'CMsgClientHello',
+      'CMsgClientWelcome',
+      // The shared-object cache: how the GC hands over the inventory
+      'CMsgSOCacheSubscribed',
+      'CMsgSOSingleObject',
+      'CMsgSOMultipleObjects',
+    ],
+  },
+  {
+    file: 'node_modules/globaloffensive/protobufs/base_gcmessages.proto',
+    // One econ item, exactly as src/domain/econ.ts already expects to read it
+    messages: ['CSOEconItem'],
+  },
+  {
+    file: 'node_modules/globaloffensive/protobufs/econ_gcmessages.proto',
+    messages: ['CMsgCasketItem', 'CMsgGCItemCustomizationNotification'],
+  },
 ];
 
 /**

@@ -3967,4 +3967,2832 @@ export const CMsgGCClient = $root.CMsgGCClient = (() => {
     return CMsgGCClient;
 })();
 
+export const CMsgClientHello = $root.CMsgClientHello = (() => {
+
+    function CMsgClientHello(properties) {
+        this.socache_have_versions = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgClientHello.prototype.version = 0;
+    CMsgClientHello.prototype.socache_have_versions = $util.emptyArray;
+    CMsgClientHello.prototype.client_session_need = 0;
+    CMsgClientHello.prototype.client_launcher = 0;
+    CMsgClientHello.prototype.partner_srcid = 0;
+    CMsgClientHello.prototype.partner_accountid = 0;
+    CMsgClientHello.prototype.partner_accountflags = 0;
+    CMsgClientHello.prototype.partner_accountbalance = 0;
+    CMsgClientHello.prototype.steam_launcher = 0;
+
+    CMsgClientHello.create = function create(properties) {
+        return new CMsgClientHello(properties);
+    };
+
+    CMsgClientHello.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(8).uint32(message.version);
+        if (message.socache_have_versions != null && message.socache_have_versions.length)
+            for (let i = 0; i < message.socache_have_versions.length; ++i)
+                $root.CMsgSOCacheHaveVersion.encode(message.socache_have_versions[i], writer.uint32(18).fork(), q + 1).ldelim();
+        if (message.client_session_need != null && Object.hasOwnProperty.call(message, "client_session_need"))
+            writer.uint32(24).uint32(message.client_session_need);
+        if (message.client_launcher != null && Object.hasOwnProperty.call(message, "client_launcher"))
+            writer.uint32(32).uint32(message.client_launcher);
+        if (message.partner_srcid != null && Object.hasOwnProperty.call(message, "partner_srcid"))
+            writer.uint32(40).uint32(message.partner_srcid);
+        if (message.partner_accountid != null && Object.hasOwnProperty.call(message, "partner_accountid"))
+            writer.uint32(48).uint32(message.partner_accountid);
+        if (message.partner_accountflags != null && Object.hasOwnProperty.call(message, "partner_accountflags"))
+            writer.uint32(56).uint32(message.partner_accountflags);
+        if (message.partner_accountbalance != null && Object.hasOwnProperty.call(message, "partner_accountbalance"))
+            writer.uint32(64).uint32(message.partner_accountbalance);
+        if (message.steam_launcher != null && Object.hasOwnProperty.call(message, "steam_launcher"))
+            writer.uint32(72).uint32(message.steam_launcher);
+        return writer;
+    };
+
+    CMsgClientHello.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgClientHello();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.version = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    if (!(message.socache_have_versions && message.socache_have_versions.length))
+                        message.socache_have_versions = [];
+                    message.socache_have_versions.push($root.CMsgSOCacheHaveVersion.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 3: {
+                    message.client_session_need = reader.uint32();
+                    break;
+                }
+            case 4: {
+                    message.client_launcher = reader.uint32();
+                    break;
+                }
+            case 5: {
+                    message.partner_srcid = reader.uint32();
+                    break;
+                }
+            case 6: {
+                    message.partner_accountid = reader.uint32();
+                    break;
+                }
+            case 7: {
+                    message.partner_accountflags = reader.uint32();
+                    break;
+                }
+            case 8: {
+                    message.partner_accountbalance = reader.uint32();
+                    break;
+                }
+            case 9: {
+                    message.steam_launcher = reader.uint32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgClientHello.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgClientHello)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgClientHello: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgClientHello();
+        if (object.version != null)
+            message.version = object.version >>> 0;
+        if (object.socache_have_versions) {
+            if (!Array.isArray(object.socache_have_versions))
+                throw TypeError(".CMsgClientHello.socache_have_versions: array expected");
+            message.socache_have_versions = [];
+            for (let i = 0; i < object.socache_have_versions.length; ++i) {
+                if (!$util.isObject(object.socache_have_versions[i]))
+                    throw TypeError(".CMsgClientHello.socache_have_versions: object expected");
+                message.socache_have_versions[i] = $root.CMsgSOCacheHaveVersion.fromObject(object.socache_have_versions[i], long + 1);
+            }
+        }
+        if (object.client_session_need != null)
+            message.client_session_need = object.client_session_need >>> 0;
+        if (object.client_launcher != null)
+            message.client_launcher = object.client_launcher >>> 0;
+        if (object.partner_srcid != null)
+            message.partner_srcid = object.partner_srcid >>> 0;
+        if (object.partner_accountid != null)
+            message.partner_accountid = object.partner_accountid >>> 0;
+        if (object.partner_accountflags != null)
+            message.partner_accountflags = object.partner_accountflags >>> 0;
+        if (object.partner_accountbalance != null)
+            message.partner_accountbalance = object.partner_accountbalance >>> 0;
+        if (object.steam_launcher != null)
+            message.steam_launcher = object.steam_launcher >>> 0;
+        return message;
+    };
+
+    CMsgClientHello.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults)
+            object.socache_have_versions = [];
+        if (options.defaults) {
+            object.version = 0;
+            object.client_session_need = 0;
+            object.client_launcher = 0;
+            object.partner_srcid = 0;
+            object.partner_accountid = 0;
+            object.partner_accountflags = 0;
+            object.partner_accountbalance = 0;
+            object.steam_launcher = 0;
+        }
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            object.version = message.version;
+        if (message.socache_have_versions && message.socache_have_versions.length) {
+            object.socache_have_versions = [];
+            for (let j = 0; j < message.socache_have_versions.length; ++j)
+                object.socache_have_versions[j] = $root.CMsgSOCacheHaveVersion.toObject(message.socache_have_versions[j], options, q + 1);
+        }
+        if (message.client_session_need != null && Object.hasOwnProperty.call(message, "client_session_need"))
+            object.client_session_need = message.client_session_need;
+        if (message.client_launcher != null && Object.hasOwnProperty.call(message, "client_launcher"))
+            object.client_launcher = message.client_launcher;
+        if (message.partner_srcid != null && Object.hasOwnProperty.call(message, "partner_srcid"))
+            object.partner_srcid = message.partner_srcid;
+        if (message.partner_accountid != null && Object.hasOwnProperty.call(message, "partner_accountid"))
+            object.partner_accountid = message.partner_accountid;
+        if (message.partner_accountflags != null && Object.hasOwnProperty.call(message, "partner_accountflags"))
+            object.partner_accountflags = message.partner_accountflags;
+        if (message.partner_accountbalance != null && Object.hasOwnProperty.call(message, "partner_accountbalance"))
+            object.partner_accountbalance = message.partner_accountbalance;
+        if (message.steam_launcher != null && Object.hasOwnProperty.call(message, "steam_launcher"))
+            object.steam_launcher = message.steam_launcher;
+        return object;
+    };
+
+    CMsgClientHello.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgClientHello.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgClientHello";
+    };
+
+    return CMsgClientHello;
+})();
+
+export const CMsgSOCacheHaveVersion = $root.CMsgSOCacheHaveVersion = (() => {
+
+    function CMsgSOCacheHaveVersion(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgSOCacheHaveVersion.prototype.soid = null;
+    CMsgSOCacheHaveVersion.prototype.version = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+    CMsgSOCacheHaveVersion.create = function create(properties) {
+        return new CMsgSOCacheHaveVersion(properties);
+    };
+
+    CMsgSOCacheHaveVersion.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.soid != null && Object.hasOwnProperty.call(message, "soid"))
+            $root.CMsgSOIDOwner.encode(message.soid, writer.uint32(10).fork(), q + 1).ldelim();
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(17).fixed64(message.version);
+        return writer;
+    };
+
+    CMsgSOCacheHaveVersion.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgSOCacheHaveVersion();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.soid = $root.CMsgSOIDOwner.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            case 2: {
+                    message.version = reader.fixed64();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgSOCacheHaveVersion.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgSOCacheHaveVersion)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgSOCacheHaveVersion: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgSOCacheHaveVersion();
+        if (object.soid != null) {
+            if (!$util.isObject(object.soid))
+                throw TypeError(".CMsgSOCacheHaveVersion.soid: object expected");
+            message.soid = $root.CMsgSOIDOwner.fromObject(object.soid, long + 1);
+        }
+        if (object.version != null)
+            if ($util.Long)
+                message.version = $util.Long.fromValue(object.version, true);
+            else if (typeof object.version === "string")
+                message.version = parseInt(object.version, 10);
+            else if (typeof object.version === "number")
+                message.version = object.version;
+            else if (typeof object.version === "object")
+                message.version = new $util.LongBits(object.version.low >>> 0, object.version.high >>> 0).toNumber(true);
+        return message;
+    };
+
+    CMsgSOCacheHaveVersion.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.soid = null;
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.version = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.version = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+        }
+        if (message.soid != null && Object.hasOwnProperty.call(message, "soid"))
+            object.soid = $root.CMsgSOIDOwner.toObject(message.soid, options, q + 1);
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.version = typeof message.version === "number" ? BigInt(message.version) : $util.Long.fromBits(message.version.low >>> 0, message.version.high >>> 0, true).toBigInt();
+            else if (typeof message.version === "number")
+                object.version = options.longs === String ? String(message.version) : message.version;
+            else
+                object.version = options.longs === String ? $util.Long.prototype.toString.call(message.version) : options.longs === Number ? new $util.LongBits(message.version.low >>> 0, message.version.high >>> 0).toNumber(true) : message.version;
+        return object;
+    };
+
+    CMsgSOCacheHaveVersion.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgSOCacheHaveVersion.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgSOCacheHaveVersion";
+    };
+
+    return CMsgSOCacheHaveVersion;
+})();
+
+export const CMsgSOIDOwner = $root.CMsgSOIDOwner = (() => {
+
+    function CMsgSOIDOwner(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgSOIDOwner.prototype.type = 0;
+    CMsgSOIDOwner.prototype.id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+    CMsgSOIDOwner.create = function create(properties) {
+        return new CMsgSOIDOwner(properties);
+    };
+
+    CMsgSOIDOwner.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.type != null && Object.hasOwnProperty.call(message, "type"))
+            writer.uint32(8).uint32(message.type);
+        if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+            writer.uint32(16).uint64(message.id);
+        return writer;
+    };
+
+    CMsgSOIDOwner.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgSOIDOwner();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.type = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    message.id = reader.uint64();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgSOIDOwner.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgSOIDOwner)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgSOIDOwner: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgSOIDOwner();
+        if (object.type != null)
+            message.type = object.type >>> 0;
+        if (object.id != null)
+            if ($util.Long)
+                message.id = $util.Long.fromValue(object.id, true);
+            else if (typeof object.id === "string")
+                message.id = parseInt(object.id, 10);
+            else if (typeof object.id === "number")
+                message.id = object.id;
+            else if (typeof object.id === "object")
+                message.id = new $util.LongBits(object.id.low >>> 0, object.id.high >>> 0).toNumber(true);
+        return message;
+    };
+
+    CMsgSOIDOwner.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.type = 0;
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+        }
+        if (message.type != null && Object.hasOwnProperty.call(message, "type"))
+            object.type = message.type;
+        if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.id = typeof message.id === "number" ? BigInt(message.id) : $util.Long.fromBits(message.id.low >>> 0, message.id.high >>> 0, true).toBigInt();
+            else if (typeof message.id === "number")
+                object.id = options.longs === String ? String(message.id) : message.id;
+            else
+                object.id = options.longs === String ? $util.Long.prototype.toString.call(message.id) : options.longs === Number ? new $util.LongBits(message.id.low >>> 0, message.id.high >>> 0).toNumber(true) : message.id;
+        return object;
+    };
+
+    CMsgSOIDOwner.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgSOIDOwner.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgSOIDOwner";
+    };
+
+    return CMsgSOIDOwner;
+})();
+
+export const CMsgClientWelcome = $root.CMsgClientWelcome = (() => {
+
+    function CMsgClientWelcome(properties) {
+        this.outofdate_subscribed_caches = [];
+        this.uptodate_subscribed_caches = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgClientWelcome.prototype.version = 0;
+    CMsgClientWelcome.prototype.game_data = $util.newBuffer([]);
+    CMsgClientWelcome.prototype.outofdate_subscribed_caches = $util.emptyArray;
+    CMsgClientWelcome.prototype.uptodate_subscribed_caches = $util.emptyArray;
+    CMsgClientWelcome.prototype.location = null;
+    CMsgClientWelcome.prototype.game_data2 = $util.newBuffer([]);
+    CMsgClientWelcome.prototype.rtime32_gc_welcome_timestamp = 0;
+    CMsgClientWelcome.prototype.currency = 0;
+    CMsgClientWelcome.prototype.balance = 0;
+    CMsgClientWelcome.prototype.balance_url = "";
+    CMsgClientWelcome.prototype.txn_country_code = "";
+
+    CMsgClientWelcome.create = function create(properties) {
+        return new CMsgClientWelcome(properties);
+    };
+
+    CMsgClientWelcome.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(8).uint32(message.version);
+        if (message.game_data != null && Object.hasOwnProperty.call(message, "game_data"))
+            writer.uint32(18).bytes(message.game_data);
+        if (message.outofdate_subscribed_caches != null && message.outofdate_subscribed_caches.length)
+            for (let i = 0; i < message.outofdate_subscribed_caches.length; ++i)
+                $root.CMsgSOCacheSubscribed.encode(message.outofdate_subscribed_caches[i], writer.uint32(26).fork(), q + 1).ldelim();
+        if (message.uptodate_subscribed_caches != null && message.uptodate_subscribed_caches.length)
+            for (let i = 0; i < message.uptodate_subscribed_caches.length; ++i)
+                $root.CMsgSOCacheSubscriptionCheck.encode(message.uptodate_subscribed_caches[i], writer.uint32(34).fork(), q + 1).ldelim();
+        if (message.location != null && Object.hasOwnProperty.call(message, "location"))
+            $root.CMsgClientWelcome.Location.encode(message.location, writer.uint32(42).fork(), q + 1).ldelim();
+        if (message.game_data2 != null && Object.hasOwnProperty.call(message, "game_data2"))
+            writer.uint32(50).bytes(message.game_data2);
+        if (message.rtime32_gc_welcome_timestamp != null && Object.hasOwnProperty.call(message, "rtime32_gc_welcome_timestamp"))
+            writer.uint32(56).uint32(message.rtime32_gc_welcome_timestamp);
+        if (message.currency != null && Object.hasOwnProperty.call(message, "currency"))
+            writer.uint32(64).uint32(message.currency);
+        if (message.balance != null && Object.hasOwnProperty.call(message, "balance"))
+            writer.uint32(72).uint32(message.balance);
+        if (message.balance_url != null && Object.hasOwnProperty.call(message, "balance_url"))
+            writer.uint32(82).string(message.balance_url);
+        if (message.txn_country_code != null && Object.hasOwnProperty.call(message, "txn_country_code"))
+            writer.uint32(90).string(message.txn_country_code);
+        return writer;
+    };
+
+    CMsgClientWelcome.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgClientWelcome();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.version = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    message.game_data = reader.bytes();
+                    break;
+                }
+            case 3: {
+                    if (!(message.outofdate_subscribed_caches && message.outofdate_subscribed_caches.length))
+                        message.outofdate_subscribed_caches = [];
+                    message.outofdate_subscribed_caches.push($root.CMsgSOCacheSubscribed.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 4: {
+                    if (!(message.uptodate_subscribed_caches && message.uptodate_subscribed_caches.length))
+                        message.uptodate_subscribed_caches = [];
+                    message.uptodate_subscribed_caches.push($root.CMsgSOCacheSubscriptionCheck.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 5: {
+                    message.location = $root.CMsgClientWelcome.Location.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            case 6: {
+                    message.game_data2 = reader.bytes();
+                    break;
+                }
+            case 7: {
+                    message.rtime32_gc_welcome_timestamp = reader.uint32();
+                    break;
+                }
+            case 8: {
+                    message.currency = reader.uint32();
+                    break;
+                }
+            case 9: {
+                    message.balance = reader.uint32();
+                    break;
+                }
+            case 10: {
+                    message.balance_url = reader.string();
+                    break;
+                }
+            case 11: {
+                    message.txn_country_code = reader.string();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgClientWelcome.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgClientWelcome)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgClientWelcome: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgClientWelcome();
+        if (object.version != null)
+            message.version = object.version >>> 0;
+        if (object.game_data != null)
+            if (typeof object.game_data === "string")
+                $util.base64.decode(object.game_data, message.game_data = $util.newBuffer($util.base64.length(object.game_data)), 0);
+            else if (object.game_data.length >= 0)
+                message.game_data = object.game_data;
+        if (object.outofdate_subscribed_caches) {
+            if (!Array.isArray(object.outofdate_subscribed_caches))
+                throw TypeError(".CMsgClientWelcome.outofdate_subscribed_caches: array expected");
+            message.outofdate_subscribed_caches = [];
+            for (let i = 0; i < object.outofdate_subscribed_caches.length; ++i) {
+                if (!$util.isObject(object.outofdate_subscribed_caches[i]))
+                    throw TypeError(".CMsgClientWelcome.outofdate_subscribed_caches: object expected");
+                message.outofdate_subscribed_caches[i] = $root.CMsgSOCacheSubscribed.fromObject(object.outofdate_subscribed_caches[i], long + 1);
+            }
+        }
+        if (object.uptodate_subscribed_caches) {
+            if (!Array.isArray(object.uptodate_subscribed_caches))
+                throw TypeError(".CMsgClientWelcome.uptodate_subscribed_caches: array expected");
+            message.uptodate_subscribed_caches = [];
+            for (let i = 0; i < object.uptodate_subscribed_caches.length; ++i) {
+                if (!$util.isObject(object.uptodate_subscribed_caches[i]))
+                    throw TypeError(".CMsgClientWelcome.uptodate_subscribed_caches: object expected");
+                message.uptodate_subscribed_caches[i] = $root.CMsgSOCacheSubscriptionCheck.fromObject(object.uptodate_subscribed_caches[i], long + 1);
+            }
+        }
+        if (object.location != null) {
+            if (!$util.isObject(object.location))
+                throw TypeError(".CMsgClientWelcome.location: object expected");
+            message.location = $root.CMsgClientWelcome.Location.fromObject(object.location, long + 1);
+        }
+        if (object.game_data2 != null)
+            if (typeof object.game_data2 === "string")
+                $util.base64.decode(object.game_data2, message.game_data2 = $util.newBuffer($util.base64.length(object.game_data2)), 0);
+            else if (object.game_data2.length >= 0)
+                message.game_data2 = object.game_data2;
+        if (object.rtime32_gc_welcome_timestamp != null)
+            message.rtime32_gc_welcome_timestamp = object.rtime32_gc_welcome_timestamp >>> 0;
+        if (object.currency != null)
+            message.currency = object.currency >>> 0;
+        if (object.balance != null)
+            message.balance = object.balance >>> 0;
+        if (object.balance_url != null)
+            message.balance_url = String(object.balance_url);
+        if (object.txn_country_code != null)
+            message.txn_country_code = String(object.txn_country_code);
+        return message;
+    };
+
+    CMsgClientWelcome.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults) {
+            object.outofdate_subscribed_caches = [];
+            object.uptodate_subscribed_caches = [];
+        }
+        if (options.defaults) {
+            object.version = 0;
+            if (options.bytes === String)
+                object.game_data = "";
+            else {
+                object.game_data = [];
+                if (options.bytes !== Array)
+                    object.game_data = $util.newBuffer(object.game_data);
+            }
+            object.location = null;
+            if (options.bytes === String)
+                object.game_data2 = "";
+            else {
+                object.game_data2 = [];
+                if (options.bytes !== Array)
+                    object.game_data2 = $util.newBuffer(object.game_data2);
+            }
+            object.rtime32_gc_welcome_timestamp = 0;
+            object.currency = 0;
+            object.balance = 0;
+            object.balance_url = "";
+            object.txn_country_code = "";
+        }
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            object.version = message.version;
+        if (message.game_data != null && Object.hasOwnProperty.call(message, "game_data"))
+            object.game_data = options.bytes === String ? $util.base64.encode(message.game_data, 0, message.game_data.length) : options.bytes === Array ? Array.prototype.slice.call(message.game_data) : message.game_data;
+        if (message.outofdate_subscribed_caches && message.outofdate_subscribed_caches.length) {
+            object.outofdate_subscribed_caches = [];
+            for (let j = 0; j < message.outofdate_subscribed_caches.length; ++j)
+                object.outofdate_subscribed_caches[j] = $root.CMsgSOCacheSubscribed.toObject(message.outofdate_subscribed_caches[j], options, q + 1);
+        }
+        if (message.uptodate_subscribed_caches && message.uptodate_subscribed_caches.length) {
+            object.uptodate_subscribed_caches = [];
+            for (let j = 0; j < message.uptodate_subscribed_caches.length; ++j)
+                object.uptodate_subscribed_caches[j] = $root.CMsgSOCacheSubscriptionCheck.toObject(message.uptodate_subscribed_caches[j], options, q + 1);
+        }
+        if (message.location != null && Object.hasOwnProperty.call(message, "location"))
+            object.location = $root.CMsgClientWelcome.Location.toObject(message.location, options, q + 1);
+        if (message.game_data2 != null && Object.hasOwnProperty.call(message, "game_data2"))
+            object.game_data2 = options.bytes === String ? $util.base64.encode(message.game_data2, 0, message.game_data2.length) : options.bytes === Array ? Array.prototype.slice.call(message.game_data2) : message.game_data2;
+        if (message.rtime32_gc_welcome_timestamp != null && Object.hasOwnProperty.call(message, "rtime32_gc_welcome_timestamp"))
+            object.rtime32_gc_welcome_timestamp = message.rtime32_gc_welcome_timestamp;
+        if (message.currency != null && Object.hasOwnProperty.call(message, "currency"))
+            object.currency = message.currency;
+        if (message.balance != null && Object.hasOwnProperty.call(message, "balance"))
+            object.balance = message.balance;
+        if (message.balance_url != null && Object.hasOwnProperty.call(message, "balance_url"))
+            object.balance_url = message.balance_url;
+        if (message.txn_country_code != null && Object.hasOwnProperty.call(message, "txn_country_code"))
+            object.txn_country_code = message.txn_country_code;
+        return object;
+    };
+
+    CMsgClientWelcome.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgClientWelcome.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgClientWelcome";
+    };
+
+    CMsgClientWelcome.Location = (function() {
+
+        function Location(properties) {
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        Location.prototype.latitude = 0;
+        Location.prototype.longitude = 0;
+        Location.prototype.country = "";
+
+        Location.create = function create(properties) {
+            return new Location(properties);
+        };
+
+        Location.encode = function encode(message, writer, q) {
+            if (!writer)
+                writer = $Writer.create();
+            if (q === undefined)
+                q = 0;
+            if (q > $util.recursionLimit)
+                throw Error("max depth exceeded");
+            if (message.latitude != null && Object.hasOwnProperty.call(message, "latitude"))
+                writer.uint32(13).float(message.latitude);
+            if (message.longitude != null && Object.hasOwnProperty.call(message, "longitude"))
+                writer.uint32(21).float(message.longitude);
+            if (message.country != null && Object.hasOwnProperty.call(message, "country"))
+                writer.uint32(26).string(message.country);
+            return writer;
+        };
+
+        Location.decode = function decode(reader, length, error, long) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (long === undefined)
+                long = 0;
+            if (long > $Reader.recursionLimit)
+                throw Error("maximum nesting depth exceeded");
+            let end, message;
+            if (length === undefined)
+                end = reader.len;
+            else {
+                end = reader.pos + length;
+                if (end > reader.len)
+                    throw RangeError("index out of range");
+                length = reader.len;
+                reader.len = end;
+            }
+            message = new $root.CMsgClientWelcome.Location();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.latitude = reader.float();
+                        break;
+                    }
+                case 2: {
+                        message.longitude = reader.float();
+                        break;
+                    }
+                case 3: {
+                        message.country = reader.string();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7, long);
+                    break;
+                }
+            }
+            if (length !== undefined) {
+                if (reader.pos !== end)
+                    throw RangeError("index out of range");
+                reader.len = length;
+            }
+            return message;
+        };
+
+        Location.fromObject = function fromObject(object, long) {
+            if (object instanceof $root.CMsgClientWelcome.Location)
+                return object;
+            if (!$util.isObject(object))
+                throw TypeError(".CMsgClientWelcome.Location: object expected");
+            if (long === undefined)
+                long = 0;
+            if (long > $util.recursionLimit)
+                throw Error("maximum nesting depth exceeded");
+            let message = new $root.CMsgClientWelcome.Location();
+            if (object.latitude != null)
+                message.latitude = Number(object.latitude);
+            if (object.longitude != null)
+                message.longitude = Number(object.longitude);
+            if (object.country != null)
+                message.country = String(object.country);
+            return message;
+        };
+
+        Location.toObject = function toObject(message, options, q) {
+            if (!options)
+                options = {};
+            if (q === undefined)
+                q = 0;
+            if (q > $util.recursionLimit)
+                throw Error("max depth exceeded");
+            let object = {};
+            if (options.defaults) {
+                object.latitude = 0;
+                object.longitude = 0;
+                object.country = "";
+            }
+            if (message.latitude != null && Object.hasOwnProperty.call(message, "latitude"))
+                object.latitude = options.json && !isFinite(message.latitude) ? String(message.latitude) : message.latitude;
+            if (message.longitude != null && Object.hasOwnProperty.call(message, "longitude"))
+                object.longitude = options.json && !isFinite(message.longitude) ? String(message.longitude) : message.longitude;
+            if (message.country != null && Object.hasOwnProperty.call(message, "country"))
+                object.country = message.country;
+            return object;
+        };
+
+        Location.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        Location.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/CMsgClientWelcome.Location";
+        };
+
+        return Location;
+    })();
+
+    return CMsgClientWelcome;
+})();
+
+export const CMsgSOCacheSubscribed = $root.CMsgSOCacheSubscribed = (() => {
+
+    function CMsgSOCacheSubscribed(properties) {
+        this.objects = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgSOCacheSubscribed.prototype.objects = $util.emptyArray;
+    CMsgSOCacheSubscribed.prototype.version = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CMsgSOCacheSubscribed.prototype.owner_soid = null;
+
+    CMsgSOCacheSubscribed.create = function create(properties) {
+        return new CMsgSOCacheSubscribed(properties);
+    };
+
+    CMsgSOCacheSubscribed.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.objects != null && message.objects.length)
+            for (let i = 0; i < message.objects.length; ++i)
+                $root.CMsgSOCacheSubscribed.SubscribedType.encode(message.objects[i], writer.uint32(18).fork(), q + 1).ldelim();
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(25).fixed64(message.version);
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            $root.CMsgSOIDOwner.encode(message.owner_soid, writer.uint32(34).fork(), q + 1).ldelim();
+        return writer;
+    };
+
+    CMsgSOCacheSubscribed.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgSOCacheSubscribed();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 2: {
+                    if (!(message.objects && message.objects.length))
+                        message.objects = [];
+                    message.objects.push($root.CMsgSOCacheSubscribed.SubscribedType.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 3: {
+                    message.version = reader.fixed64();
+                    break;
+                }
+            case 4: {
+                    message.owner_soid = $root.CMsgSOIDOwner.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgSOCacheSubscribed.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgSOCacheSubscribed)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgSOCacheSubscribed: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgSOCacheSubscribed();
+        if (object.objects) {
+            if (!Array.isArray(object.objects))
+                throw TypeError(".CMsgSOCacheSubscribed.objects: array expected");
+            message.objects = [];
+            for (let i = 0; i < object.objects.length; ++i) {
+                if (!$util.isObject(object.objects[i]))
+                    throw TypeError(".CMsgSOCacheSubscribed.objects: object expected");
+                message.objects[i] = $root.CMsgSOCacheSubscribed.SubscribedType.fromObject(object.objects[i], long + 1);
+            }
+        }
+        if (object.version != null)
+            if ($util.Long)
+                message.version = $util.Long.fromValue(object.version, true);
+            else if (typeof object.version === "string")
+                message.version = parseInt(object.version, 10);
+            else if (typeof object.version === "number")
+                message.version = object.version;
+            else if (typeof object.version === "object")
+                message.version = new $util.LongBits(object.version.low >>> 0, object.version.high >>> 0).toNumber(true);
+        if (object.owner_soid != null) {
+            if (!$util.isObject(object.owner_soid))
+                throw TypeError(".CMsgSOCacheSubscribed.owner_soid: object expected");
+            message.owner_soid = $root.CMsgSOIDOwner.fromObject(object.owner_soid, long + 1);
+        }
+        return message;
+    };
+
+    CMsgSOCacheSubscribed.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults)
+            object.objects = [];
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.version = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.version = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.owner_soid = null;
+        }
+        if (message.objects && message.objects.length) {
+            object.objects = [];
+            for (let j = 0; j < message.objects.length; ++j)
+                object.objects[j] = $root.CMsgSOCacheSubscribed.SubscribedType.toObject(message.objects[j], options, q + 1);
+        }
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.version = typeof message.version === "number" ? BigInt(message.version) : $util.Long.fromBits(message.version.low >>> 0, message.version.high >>> 0, true).toBigInt();
+            else if (typeof message.version === "number")
+                object.version = options.longs === String ? String(message.version) : message.version;
+            else
+                object.version = options.longs === String ? $util.Long.prototype.toString.call(message.version) : options.longs === Number ? new $util.LongBits(message.version.low >>> 0, message.version.high >>> 0).toNumber(true) : message.version;
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            object.owner_soid = $root.CMsgSOIDOwner.toObject(message.owner_soid, options, q + 1);
+        return object;
+    };
+
+    CMsgSOCacheSubscribed.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgSOCacheSubscribed.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgSOCacheSubscribed";
+    };
+
+    CMsgSOCacheSubscribed.SubscribedType = (function() {
+
+        function SubscribedType(properties) {
+            this.object_data = [];
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        SubscribedType.prototype.type_id = 0;
+        SubscribedType.prototype.object_data = $util.emptyArray;
+
+        SubscribedType.create = function create(properties) {
+            return new SubscribedType(properties);
+        };
+
+        SubscribedType.encode = function encode(message, writer, q) {
+            if (!writer)
+                writer = $Writer.create();
+            if (q === undefined)
+                q = 0;
+            if (q > $util.recursionLimit)
+                throw Error("max depth exceeded");
+            if (message.type_id != null && Object.hasOwnProperty.call(message, "type_id"))
+                writer.uint32(8).int32(message.type_id);
+            if (message.object_data != null && message.object_data.length)
+                for (let i = 0; i < message.object_data.length; ++i)
+                    writer.uint32(18).bytes(message.object_data[i]);
+            return writer;
+        };
+
+        SubscribedType.decode = function decode(reader, length, error, long) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (long === undefined)
+                long = 0;
+            if (long > $Reader.recursionLimit)
+                throw Error("maximum nesting depth exceeded");
+            let end, message;
+            if (length === undefined)
+                end = reader.len;
+            else {
+                end = reader.pos + length;
+                if (end > reader.len)
+                    throw RangeError("index out of range");
+                length = reader.len;
+                reader.len = end;
+            }
+            message = new $root.CMsgSOCacheSubscribed.SubscribedType();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.type_id = reader.int32();
+                        break;
+                    }
+                case 2: {
+                        if (!(message.object_data && message.object_data.length))
+                            message.object_data = [];
+                        message.object_data.push(reader.bytes());
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7, long);
+                    break;
+                }
+            }
+            if (length !== undefined) {
+                if (reader.pos !== end)
+                    throw RangeError("index out of range");
+                reader.len = length;
+            }
+            return message;
+        };
+
+        SubscribedType.fromObject = function fromObject(object, long) {
+            if (object instanceof $root.CMsgSOCacheSubscribed.SubscribedType)
+                return object;
+            if (!$util.isObject(object))
+                throw TypeError(".CMsgSOCacheSubscribed.SubscribedType: object expected");
+            if (long === undefined)
+                long = 0;
+            if (long > $util.recursionLimit)
+                throw Error("maximum nesting depth exceeded");
+            let message = new $root.CMsgSOCacheSubscribed.SubscribedType();
+            if (object.type_id != null)
+                message.type_id = object.type_id | 0;
+            if (object.object_data) {
+                if (!Array.isArray(object.object_data))
+                    throw TypeError(".CMsgSOCacheSubscribed.SubscribedType.object_data: array expected");
+                message.object_data = [];
+                for (let i = 0; i < object.object_data.length; ++i)
+                    if (typeof object.object_data[i] === "string")
+                        $util.base64.decode(object.object_data[i], message.object_data[i] = $util.newBuffer($util.base64.length(object.object_data[i])), 0);
+                    else if (object.object_data[i].length >= 0)
+                        message.object_data[i] = object.object_data[i];
+            }
+            return message;
+        };
+
+        SubscribedType.toObject = function toObject(message, options, q) {
+            if (!options)
+                options = {};
+            if (q === undefined)
+                q = 0;
+            if (q > $util.recursionLimit)
+                throw Error("max depth exceeded");
+            let object = {};
+            if (options.arrays || options.defaults)
+                object.object_data = [];
+            if (options.defaults)
+                object.type_id = 0;
+            if (message.type_id != null && Object.hasOwnProperty.call(message, "type_id"))
+                object.type_id = message.type_id;
+            if (message.object_data && message.object_data.length) {
+                object.object_data = [];
+                for (let j = 0; j < message.object_data.length; ++j)
+                    object.object_data[j] = options.bytes === String ? $util.base64.encode(message.object_data[j], 0, message.object_data[j].length) : options.bytes === Array ? Array.prototype.slice.call(message.object_data[j]) : message.object_data[j];
+            }
+            return object;
+        };
+
+        SubscribedType.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        SubscribedType.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/CMsgSOCacheSubscribed.SubscribedType";
+        };
+
+        return SubscribedType;
+    })();
+
+    return CMsgSOCacheSubscribed;
+})();
+
+export const CMsgSOCacheSubscriptionCheck = $root.CMsgSOCacheSubscriptionCheck = (() => {
+
+    function CMsgSOCacheSubscriptionCheck(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgSOCacheSubscriptionCheck.prototype.version = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CMsgSOCacheSubscriptionCheck.prototype.owner_soid = null;
+
+    CMsgSOCacheSubscriptionCheck.create = function create(properties) {
+        return new CMsgSOCacheSubscriptionCheck(properties);
+    };
+
+    CMsgSOCacheSubscriptionCheck.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(17).fixed64(message.version);
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            $root.CMsgSOIDOwner.encode(message.owner_soid, writer.uint32(26).fork(), q + 1).ldelim();
+        return writer;
+    };
+
+    CMsgSOCacheSubscriptionCheck.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgSOCacheSubscriptionCheck();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 2: {
+                    message.version = reader.fixed64();
+                    break;
+                }
+            case 3: {
+                    message.owner_soid = $root.CMsgSOIDOwner.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgSOCacheSubscriptionCheck.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgSOCacheSubscriptionCheck)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgSOCacheSubscriptionCheck: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgSOCacheSubscriptionCheck();
+        if (object.version != null)
+            if ($util.Long)
+                message.version = $util.Long.fromValue(object.version, true);
+            else if (typeof object.version === "string")
+                message.version = parseInt(object.version, 10);
+            else if (typeof object.version === "number")
+                message.version = object.version;
+            else if (typeof object.version === "object")
+                message.version = new $util.LongBits(object.version.low >>> 0, object.version.high >>> 0).toNumber(true);
+        if (object.owner_soid != null) {
+            if (!$util.isObject(object.owner_soid))
+                throw TypeError(".CMsgSOCacheSubscriptionCheck.owner_soid: object expected");
+            message.owner_soid = $root.CMsgSOIDOwner.fromObject(object.owner_soid, long + 1);
+        }
+        return message;
+    };
+
+    CMsgSOCacheSubscriptionCheck.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.version = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.version = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.owner_soid = null;
+        }
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.version = typeof message.version === "number" ? BigInt(message.version) : $util.Long.fromBits(message.version.low >>> 0, message.version.high >>> 0, true).toBigInt();
+            else if (typeof message.version === "number")
+                object.version = options.longs === String ? String(message.version) : message.version;
+            else
+                object.version = options.longs === String ? $util.Long.prototype.toString.call(message.version) : options.longs === Number ? new $util.LongBits(message.version.low >>> 0, message.version.high >>> 0).toNumber(true) : message.version;
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            object.owner_soid = $root.CMsgSOIDOwner.toObject(message.owner_soid, options, q + 1);
+        return object;
+    };
+
+    CMsgSOCacheSubscriptionCheck.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgSOCacheSubscriptionCheck.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgSOCacheSubscriptionCheck";
+    };
+
+    return CMsgSOCacheSubscriptionCheck;
+})();
+
+export const CMsgSOSingleObject = $root.CMsgSOSingleObject = (() => {
+
+    function CMsgSOSingleObject(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgSOSingleObject.prototype.type_id = 0;
+    CMsgSOSingleObject.prototype.object_data = $util.newBuffer([]);
+    CMsgSOSingleObject.prototype.version = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CMsgSOSingleObject.prototype.owner_soid = null;
+
+    CMsgSOSingleObject.create = function create(properties) {
+        return new CMsgSOSingleObject(properties);
+    };
+
+    CMsgSOSingleObject.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.type_id != null && Object.hasOwnProperty.call(message, "type_id"))
+            writer.uint32(16).int32(message.type_id);
+        if (message.object_data != null && Object.hasOwnProperty.call(message, "object_data"))
+            writer.uint32(26).bytes(message.object_data);
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(33).fixed64(message.version);
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            $root.CMsgSOIDOwner.encode(message.owner_soid, writer.uint32(42).fork(), q + 1).ldelim();
+        return writer;
+    };
+
+    CMsgSOSingleObject.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgSOSingleObject();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 2: {
+                    message.type_id = reader.int32();
+                    break;
+                }
+            case 3: {
+                    message.object_data = reader.bytes();
+                    break;
+                }
+            case 4: {
+                    message.version = reader.fixed64();
+                    break;
+                }
+            case 5: {
+                    message.owner_soid = $root.CMsgSOIDOwner.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgSOSingleObject.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgSOSingleObject)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgSOSingleObject: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgSOSingleObject();
+        if (object.type_id != null)
+            message.type_id = object.type_id | 0;
+        if (object.object_data != null)
+            if (typeof object.object_data === "string")
+                $util.base64.decode(object.object_data, message.object_data = $util.newBuffer($util.base64.length(object.object_data)), 0);
+            else if (object.object_data.length >= 0)
+                message.object_data = object.object_data;
+        if (object.version != null)
+            if ($util.Long)
+                message.version = $util.Long.fromValue(object.version, true);
+            else if (typeof object.version === "string")
+                message.version = parseInt(object.version, 10);
+            else if (typeof object.version === "number")
+                message.version = object.version;
+            else if (typeof object.version === "object")
+                message.version = new $util.LongBits(object.version.low >>> 0, object.version.high >>> 0).toNumber(true);
+        if (object.owner_soid != null) {
+            if (!$util.isObject(object.owner_soid))
+                throw TypeError(".CMsgSOSingleObject.owner_soid: object expected");
+            message.owner_soid = $root.CMsgSOIDOwner.fromObject(object.owner_soid, long + 1);
+        }
+        return message;
+    };
+
+    CMsgSOSingleObject.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.type_id = 0;
+            if (options.bytes === String)
+                object.object_data = "";
+            else {
+                object.object_data = [];
+                if (options.bytes !== Array)
+                    object.object_data = $util.newBuffer(object.object_data);
+            }
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.version = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.version = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.owner_soid = null;
+        }
+        if (message.type_id != null && Object.hasOwnProperty.call(message, "type_id"))
+            object.type_id = message.type_id;
+        if (message.object_data != null && Object.hasOwnProperty.call(message, "object_data"))
+            object.object_data = options.bytes === String ? $util.base64.encode(message.object_data, 0, message.object_data.length) : options.bytes === Array ? Array.prototype.slice.call(message.object_data) : message.object_data;
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.version = typeof message.version === "number" ? BigInt(message.version) : $util.Long.fromBits(message.version.low >>> 0, message.version.high >>> 0, true).toBigInt();
+            else if (typeof message.version === "number")
+                object.version = options.longs === String ? String(message.version) : message.version;
+            else
+                object.version = options.longs === String ? $util.Long.prototype.toString.call(message.version) : options.longs === Number ? new $util.LongBits(message.version.low >>> 0, message.version.high >>> 0).toNumber(true) : message.version;
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            object.owner_soid = $root.CMsgSOIDOwner.toObject(message.owner_soid, options, q + 1);
+        return object;
+    };
+
+    CMsgSOSingleObject.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgSOSingleObject.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgSOSingleObject";
+    };
+
+    return CMsgSOSingleObject;
+})();
+
+export const CMsgSOMultipleObjects = $root.CMsgSOMultipleObjects = (() => {
+
+    function CMsgSOMultipleObjects(properties) {
+        this.objects_modified = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgSOMultipleObjects.prototype.objects_modified = $util.emptyArray;
+    CMsgSOMultipleObjects.prototype.version = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CMsgSOMultipleObjects.prototype.owner_soid = null;
+
+    CMsgSOMultipleObjects.create = function create(properties) {
+        return new CMsgSOMultipleObjects(properties);
+    };
+
+    CMsgSOMultipleObjects.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.objects_modified != null && message.objects_modified.length)
+            for (let i = 0; i < message.objects_modified.length; ++i)
+                $root.CMsgSOMultipleObjects.SingleObject.encode(message.objects_modified[i], writer.uint32(18).fork(), q + 1).ldelim();
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(25).fixed64(message.version);
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            $root.CMsgSOIDOwner.encode(message.owner_soid, writer.uint32(50).fork(), q + 1).ldelim();
+        return writer;
+    };
+
+    CMsgSOMultipleObjects.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgSOMultipleObjects();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 2: {
+                    if (!(message.objects_modified && message.objects_modified.length))
+                        message.objects_modified = [];
+                    message.objects_modified.push($root.CMsgSOMultipleObjects.SingleObject.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 3: {
+                    message.version = reader.fixed64();
+                    break;
+                }
+            case 6: {
+                    message.owner_soid = $root.CMsgSOIDOwner.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgSOMultipleObjects.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgSOMultipleObjects)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgSOMultipleObjects: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgSOMultipleObjects();
+        if (object.objects_modified) {
+            if (!Array.isArray(object.objects_modified))
+                throw TypeError(".CMsgSOMultipleObjects.objects_modified: array expected");
+            message.objects_modified = [];
+            for (let i = 0; i < object.objects_modified.length; ++i) {
+                if (!$util.isObject(object.objects_modified[i]))
+                    throw TypeError(".CMsgSOMultipleObjects.objects_modified: object expected");
+                message.objects_modified[i] = $root.CMsgSOMultipleObjects.SingleObject.fromObject(object.objects_modified[i], long + 1);
+            }
+        }
+        if (object.version != null)
+            if ($util.Long)
+                message.version = $util.Long.fromValue(object.version, true);
+            else if (typeof object.version === "string")
+                message.version = parseInt(object.version, 10);
+            else if (typeof object.version === "number")
+                message.version = object.version;
+            else if (typeof object.version === "object")
+                message.version = new $util.LongBits(object.version.low >>> 0, object.version.high >>> 0).toNumber(true);
+        if (object.owner_soid != null) {
+            if (!$util.isObject(object.owner_soid))
+                throw TypeError(".CMsgSOMultipleObjects.owner_soid: object expected");
+            message.owner_soid = $root.CMsgSOIDOwner.fromObject(object.owner_soid, long + 1);
+        }
+        return message;
+    };
+
+    CMsgSOMultipleObjects.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults)
+            object.objects_modified = [];
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.version = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.version = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.owner_soid = null;
+        }
+        if (message.objects_modified && message.objects_modified.length) {
+            object.objects_modified = [];
+            for (let j = 0; j < message.objects_modified.length; ++j)
+                object.objects_modified[j] = $root.CMsgSOMultipleObjects.SingleObject.toObject(message.objects_modified[j], options, q + 1);
+        }
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.version = typeof message.version === "number" ? BigInt(message.version) : $util.Long.fromBits(message.version.low >>> 0, message.version.high >>> 0, true).toBigInt();
+            else if (typeof message.version === "number")
+                object.version = options.longs === String ? String(message.version) : message.version;
+            else
+                object.version = options.longs === String ? $util.Long.prototype.toString.call(message.version) : options.longs === Number ? new $util.LongBits(message.version.low >>> 0, message.version.high >>> 0).toNumber(true) : message.version;
+        if (message.owner_soid != null && Object.hasOwnProperty.call(message, "owner_soid"))
+            object.owner_soid = $root.CMsgSOIDOwner.toObject(message.owner_soid, options, q + 1);
+        return object;
+    };
+
+    CMsgSOMultipleObjects.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgSOMultipleObjects.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgSOMultipleObjects";
+    };
+
+    CMsgSOMultipleObjects.SingleObject = (function() {
+
+        function SingleObject(properties) {
+            if (properties)
+                for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                    if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                        this[keys[i]] = properties[keys[i]];
+        }
+
+        SingleObject.prototype.type_id = 0;
+        SingleObject.prototype.object_data = $util.newBuffer([]);
+
+        SingleObject.create = function create(properties) {
+            return new SingleObject(properties);
+        };
+
+        SingleObject.encode = function encode(message, writer, q) {
+            if (!writer)
+                writer = $Writer.create();
+            if (q === undefined)
+                q = 0;
+            if (q > $util.recursionLimit)
+                throw Error("max depth exceeded");
+            if (message.type_id != null && Object.hasOwnProperty.call(message, "type_id"))
+                writer.uint32(8).int32(message.type_id);
+            if (message.object_data != null && Object.hasOwnProperty.call(message, "object_data"))
+                writer.uint32(18).bytes(message.object_data);
+            return writer;
+        };
+
+        SingleObject.decode = function decode(reader, length, error, long) {
+            if (!(reader instanceof $Reader))
+                reader = $Reader.create(reader);
+            if (long === undefined)
+                long = 0;
+            if (long > $Reader.recursionLimit)
+                throw Error("maximum nesting depth exceeded");
+            let end, message;
+            if (length === undefined)
+                end = reader.len;
+            else {
+                end = reader.pos + length;
+                if (end > reader.len)
+                    throw RangeError("index out of range");
+                length = reader.len;
+                reader.len = end;
+            }
+            message = new $root.CMsgSOMultipleObjects.SingleObject();
+            while (reader.pos < end) {
+                let tag = reader.uint32();
+                if (tag === error)
+                    break;
+                switch (tag >>> 3) {
+                case 1: {
+                        message.type_id = reader.int32();
+                        break;
+                    }
+                case 2: {
+                        message.object_data = reader.bytes();
+                        break;
+                    }
+                default:
+                    reader.skipType(tag & 7, long);
+                    break;
+                }
+            }
+            if (length !== undefined) {
+                if (reader.pos !== end)
+                    throw RangeError("index out of range");
+                reader.len = length;
+            }
+            return message;
+        };
+
+        SingleObject.fromObject = function fromObject(object, long) {
+            if (object instanceof $root.CMsgSOMultipleObjects.SingleObject)
+                return object;
+            if (!$util.isObject(object))
+                throw TypeError(".CMsgSOMultipleObjects.SingleObject: object expected");
+            if (long === undefined)
+                long = 0;
+            if (long > $util.recursionLimit)
+                throw Error("maximum nesting depth exceeded");
+            let message = new $root.CMsgSOMultipleObjects.SingleObject();
+            if (object.type_id != null)
+                message.type_id = object.type_id | 0;
+            if (object.object_data != null)
+                if (typeof object.object_data === "string")
+                    $util.base64.decode(object.object_data, message.object_data = $util.newBuffer($util.base64.length(object.object_data)), 0);
+                else if (object.object_data.length >= 0)
+                    message.object_data = object.object_data;
+            return message;
+        };
+
+        SingleObject.toObject = function toObject(message, options, q) {
+            if (!options)
+                options = {};
+            if (q === undefined)
+                q = 0;
+            if (q > $util.recursionLimit)
+                throw Error("max depth exceeded");
+            let object = {};
+            if (options.defaults) {
+                object.type_id = 0;
+                if (options.bytes === String)
+                    object.object_data = "";
+                else {
+                    object.object_data = [];
+                    if (options.bytes !== Array)
+                        object.object_data = $util.newBuffer(object.object_data);
+                }
+            }
+            if (message.type_id != null && Object.hasOwnProperty.call(message, "type_id"))
+                object.type_id = message.type_id;
+            if (message.object_data != null && Object.hasOwnProperty.call(message, "object_data"))
+                object.object_data = options.bytes === String ? $util.base64.encode(message.object_data, 0, message.object_data.length) : options.bytes === Array ? Array.prototype.slice.call(message.object_data) : message.object_data;
+            return object;
+        };
+
+        SingleObject.prototype.toJSON = function toJSON() {
+            return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+        };
+
+        SingleObject.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+            if (typeUrlPrefix === undefined) {
+                typeUrlPrefix = "type.googleapis.com";
+            }
+            return typeUrlPrefix + "/CMsgSOMultipleObjects.SingleObject";
+        };
+
+        return SingleObject;
+    })();
+
+    return CMsgSOMultipleObjects;
+})();
+
+export const CSOEconItem = $root.CSOEconItem = (() => {
+
+    function CSOEconItem(properties) {
+        this.attribute = [];
+        this.equipped_state = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CSOEconItem.prototype.id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CSOEconItem.prototype.account_id = 0;
+    CSOEconItem.prototype.inventory = 0;
+    CSOEconItem.prototype.def_index = 0;
+    CSOEconItem.prototype.quantity = 0;
+    CSOEconItem.prototype.level = 0;
+    CSOEconItem.prototype.quality = 0;
+    CSOEconItem.prototype.flags = 0;
+    CSOEconItem.prototype.origin = 0;
+    CSOEconItem.prototype.custom_name = "";
+    CSOEconItem.prototype.custom_desc = "";
+    CSOEconItem.prototype.attribute = $util.emptyArray;
+    CSOEconItem.prototype.interior_item = null;
+    CSOEconItem.prototype.in_use = false;
+    CSOEconItem.prototype.style = 0;
+    CSOEconItem.prototype.original_id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CSOEconItem.prototype.equipped_state = $util.emptyArray;
+    CSOEconItem.prototype.rarity = 0;
+
+    CSOEconItem.create = function create(properties) {
+        return new CSOEconItem(properties);
+    };
+
+    CSOEconItem.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+            writer.uint32(8).uint64(message.id);
+        if (message.account_id != null && Object.hasOwnProperty.call(message, "account_id"))
+            writer.uint32(16).uint32(message.account_id);
+        if (message.inventory != null && Object.hasOwnProperty.call(message, "inventory"))
+            writer.uint32(24).uint32(message.inventory);
+        if (message.def_index != null && Object.hasOwnProperty.call(message, "def_index"))
+            writer.uint32(32).uint32(message.def_index);
+        if (message.quantity != null && Object.hasOwnProperty.call(message, "quantity"))
+            writer.uint32(40).uint32(message.quantity);
+        if (message.level != null && Object.hasOwnProperty.call(message, "level"))
+            writer.uint32(48).uint32(message.level);
+        if (message.quality != null && Object.hasOwnProperty.call(message, "quality"))
+            writer.uint32(56).uint32(message.quality);
+        if (message.flags != null && Object.hasOwnProperty.call(message, "flags"))
+            writer.uint32(64).uint32(message.flags);
+        if (message.origin != null && Object.hasOwnProperty.call(message, "origin"))
+            writer.uint32(72).uint32(message.origin);
+        if (message.custom_name != null && Object.hasOwnProperty.call(message, "custom_name"))
+            writer.uint32(82).string(message.custom_name);
+        if (message.custom_desc != null && Object.hasOwnProperty.call(message, "custom_desc"))
+            writer.uint32(90).string(message.custom_desc);
+        if (message.attribute != null && message.attribute.length)
+            for (let i = 0; i < message.attribute.length; ++i)
+                $root.CSOEconItemAttribute.encode(message.attribute[i], writer.uint32(98).fork(), q + 1).ldelim();
+        if (message.interior_item != null && Object.hasOwnProperty.call(message, "interior_item"))
+            $root.CSOEconItem.encode(message.interior_item, writer.uint32(106).fork(), q + 1).ldelim();
+        if (message.in_use != null && Object.hasOwnProperty.call(message, "in_use"))
+            writer.uint32(112).bool(message.in_use);
+        if (message.style != null && Object.hasOwnProperty.call(message, "style"))
+            writer.uint32(120).uint32(message.style);
+        if (message.original_id != null && Object.hasOwnProperty.call(message, "original_id"))
+            writer.uint32(128).uint64(message.original_id);
+        if (message.equipped_state != null && message.equipped_state.length)
+            for (let i = 0; i < message.equipped_state.length; ++i)
+                $root.CSOEconItemEquipped.encode(message.equipped_state[i], writer.uint32(146).fork(), q + 1).ldelim();
+        if (message.rarity != null && Object.hasOwnProperty.call(message, "rarity"))
+            writer.uint32(152).uint32(message.rarity);
+        return writer;
+    };
+
+    CSOEconItem.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CSOEconItem();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.id = reader.uint64();
+                    break;
+                }
+            case 2: {
+                    message.account_id = reader.uint32();
+                    break;
+                }
+            case 3: {
+                    message.inventory = reader.uint32();
+                    break;
+                }
+            case 4: {
+                    message.def_index = reader.uint32();
+                    break;
+                }
+            case 5: {
+                    message.quantity = reader.uint32();
+                    break;
+                }
+            case 6: {
+                    message.level = reader.uint32();
+                    break;
+                }
+            case 7: {
+                    message.quality = reader.uint32();
+                    break;
+                }
+            case 8: {
+                    message.flags = reader.uint32();
+                    break;
+                }
+            case 9: {
+                    message.origin = reader.uint32();
+                    break;
+                }
+            case 10: {
+                    message.custom_name = reader.string();
+                    break;
+                }
+            case 11: {
+                    message.custom_desc = reader.string();
+                    break;
+                }
+            case 12: {
+                    if (!(message.attribute && message.attribute.length))
+                        message.attribute = [];
+                    message.attribute.push($root.CSOEconItemAttribute.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 13: {
+                    message.interior_item = $root.CSOEconItem.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            case 14: {
+                    message.in_use = reader.bool();
+                    break;
+                }
+            case 15: {
+                    message.style = reader.uint32();
+                    break;
+                }
+            case 16: {
+                    message.original_id = reader.uint64();
+                    break;
+                }
+            case 18: {
+                    if (!(message.equipped_state && message.equipped_state.length))
+                        message.equipped_state = [];
+                    message.equipped_state.push($root.CSOEconItemEquipped.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 19: {
+                    message.rarity = reader.uint32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CSOEconItem.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CSOEconItem)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CSOEconItem: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CSOEconItem();
+        if (object.id != null)
+            if ($util.Long)
+                message.id = $util.Long.fromValue(object.id, true);
+            else if (typeof object.id === "string")
+                message.id = parseInt(object.id, 10);
+            else if (typeof object.id === "number")
+                message.id = object.id;
+            else if (typeof object.id === "object")
+                message.id = new $util.LongBits(object.id.low >>> 0, object.id.high >>> 0).toNumber(true);
+        if (object.account_id != null)
+            message.account_id = object.account_id >>> 0;
+        if (object.inventory != null)
+            message.inventory = object.inventory >>> 0;
+        if (object.def_index != null)
+            message.def_index = object.def_index >>> 0;
+        if (object.quantity != null)
+            message.quantity = object.quantity >>> 0;
+        if (object.level != null)
+            message.level = object.level >>> 0;
+        if (object.quality != null)
+            message.quality = object.quality >>> 0;
+        if (object.flags != null)
+            message.flags = object.flags >>> 0;
+        if (object.origin != null)
+            message.origin = object.origin >>> 0;
+        if (object.custom_name != null)
+            message.custom_name = String(object.custom_name);
+        if (object.custom_desc != null)
+            message.custom_desc = String(object.custom_desc);
+        if (object.attribute) {
+            if (!Array.isArray(object.attribute))
+                throw TypeError(".CSOEconItem.attribute: array expected");
+            message.attribute = [];
+            for (let i = 0; i < object.attribute.length; ++i) {
+                if (!$util.isObject(object.attribute[i]))
+                    throw TypeError(".CSOEconItem.attribute: object expected");
+                message.attribute[i] = $root.CSOEconItemAttribute.fromObject(object.attribute[i], long + 1);
+            }
+        }
+        if (object.interior_item != null) {
+            if (!$util.isObject(object.interior_item))
+                throw TypeError(".CSOEconItem.interior_item: object expected");
+            message.interior_item = $root.CSOEconItem.fromObject(object.interior_item, long + 1);
+        }
+        if (object.in_use != null)
+            message.in_use = Boolean(object.in_use);
+        if (object.style != null)
+            message.style = object.style >>> 0;
+        if (object.original_id != null)
+            if ($util.Long)
+                message.original_id = $util.Long.fromValue(object.original_id, true);
+            else if (typeof object.original_id === "string")
+                message.original_id = parseInt(object.original_id, 10);
+            else if (typeof object.original_id === "number")
+                message.original_id = object.original_id;
+            else if (typeof object.original_id === "object")
+                message.original_id = new $util.LongBits(object.original_id.low >>> 0, object.original_id.high >>> 0).toNumber(true);
+        if (object.equipped_state) {
+            if (!Array.isArray(object.equipped_state))
+                throw TypeError(".CSOEconItem.equipped_state: array expected");
+            message.equipped_state = [];
+            for (let i = 0; i < object.equipped_state.length; ++i) {
+                if (!$util.isObject(object.equipped_state[i]))
+                    throw TypeError(".CSOEconItem.equipped_state: object expected");
+                message.equipped_state[i] = $root.CSOEconItemEquipped.fromObject(object.equipped_state[i], long + 1);
+            }
+        }
+        if (object.rarity != null)
+            message.rarity = object.rarity >>> 0;
+        return message;
+    };
+
+    CSOEconItem.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults) {
+            object.attribute = [];
+            object.equipped_state = [];
+        }
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.account_id = 0;
+            object.inventory = 0;
+            object.def_index = 0;
+            object.quantity = 0;
+            object.level = 0;
+            object.quality = 0;
+            object.flags = 0;
+            object.origin = 0;
+            object.custom_name = "";
+            object.custom_desc = "";
+            object.interior_item = null;
+            object.in_use = false;
+            object.style = 0;
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.original_id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.original_id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.rarity = 0;
+        }
+        if (message.id != null && Object.hasOwnProperty.call(message, "id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.id = typeof message.id === "number" ? BigInt(message.id) : $util.Long.fromBits(message.id.low >>> 0, message.id.high >>> 0, true).toBigInt();
+            else if (typeof message.id === "number")
+                object.id = options.longs === String ? String(message.id) : message.id;
+            else
+                object.id = options.longs === String ? $util.Long.prototype.toString.call(message.id) : options.longs === Number ? new $util.LongBits(message.id.low >>> 0, message.id.high >>> 0).toNumber(true) : message.id;
+        if (message.account_id != null && Object.hasOwnProperty.call(message, "account_id"))
+            object.account_id = message.account_id;
+        if (message.inventory != null && Object.hasOwnProperty.call(message, "inventory"))
+            object.inventory = message.inventory;
+        if (message.def_index != null && Object.hasOwnProperty.call(message, "def_index"))
+            object.def_index = message.def_index;
+        if (message.quantity != null && Object.hasOwnProperty.call(message, "quantity"))
+            object.quantity = message.quantity;
+        if (message.level != null && Object.hasOwnProperty.call(message, "level"))
+            object.level = message.level;
+        if (message.quality != null && Object.hasOwnProperty.call(message, "quality"))
+            object.quality = message.quality;
+        if (message.flags != null && Object.hasOwnProperty.call(message, "flags"))
+            object.flags = message.flags;
+        if (message.origin != null && Object.hasOwnProperty.call(message, "origin"))
+            object.origin = message.origin;
+        if (message.custom_name != null && Object.hasOwnProperty.call(message, "custom_name"))
+            object.custom_name = message.custom_name;
+        if (message.custom_desc != null && Object.hasOwnProperty.call(message, "custom_desc"))
+            object.custom_desc = message.custom_desc;
+        if (message.attribute && message.attribute.length) {
+            object.attribute = [];
+            for (let j = 0; j < message.attribute.length; ++j)
+                object.attribute[j] = $root.CSOEconItemAttribute.toObject(message.attribute[j], options, q + 1);
+        }
+        if (message.interior_item != null && Object.hasOwnProperty.call(message, "interior_item"))
+            object.interior_item = $root.CSOEconItem.toObject(message.interior_item, options, q + 1);
+        if (message.in_use != null && Object.hasOwnProperty.call(message, "in_use"))
+            object.in_use = message.in_use;
+        if (message.style != null && Object.hasOwnProperty.call(message, "style"))
+            object.style = message.style;
+        if (message.original_id != null && Object.hasOwnProperty.call(message, "original_id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.original_id = typeof message.original_id === "number" ? BigInt(message.original_id) : $util.Long.fromBits(message.original_id.low >>> 0, message.original_id.high >>> 0, true).toBigInt();
+            else if (typeof message.original_id === "number")
+                object.original_id = options.longs === String ? String(message.original_id) : message.original_id;
+            else
+                object.original_id = options.longs === String ? $util.Long.prototype.toString.call(message.original_id) : options.longs === Number ? new $util.LongBits(message.original_id.low >>> 0, message.original_id.high >>> 0).toNumber(true) : message.original_id;
+        if (message.equipped_state && message.equipped_state.length) {
+            object.equipped_state = [];
+            for (let j = 0; j < message.equipped_state.length; ++j)
+                object.equipped_state[j] = $root.CSOEconItemEquipped.toObject(message.equipped_state[j], options, q + 1);
+        }
+        if (message.rarity != null && Object.hasOwnProperty.call(message, "rarity"))
+            object.rarity = message.rarity;
+        return object;
+    };
+
+    CSOEconItem.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CSOEconItem.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CSOEconItem";
+    };
+
+    return CSOEconItem;
+})();
+
+export const CSOEconItemAttribute = $root.CSOEconItemAttribute = (() => {
+
+    function CSOEconItemAttribute(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CSOEconItemAttribute.prototype.def_index = 0;
+    CSOEconItemAttribute.prototype.value = 0;
+    CSOEconItemAttribute.prototype.value_bytes = $util.newBuffer([]);
+
+    CSOEconItemAttribute.create = function create(properties) {
+        return new CSOEconItemAttribute(properties);
+    };
+
+    CSOEconItemAttribute.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.def_index != null && Object.hasOwnProperty.call(message, "def_index"))
+            writer.uint32(8).uint32(message.def_index);
+        if (message.value != null && Object.hasOwnProperty.call(message, "value"))
+            writer.uint32(16).uint32(message.value);
+        if (message.value_bytes != null && Object.hasOwnProperty.call(message, "value_bytes"))
+            writer.uint32(26).bytes(message.value_bytes);
+        return writer;
+    };
+
+    CSOEconItemAttribute.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CSOEconItemAttribute();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.def_index = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    message.value = reader.uint32();
+                    break;
+                }
+            case 3: {
+                    message.value_bytes = reader.bytes();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CSOEconItemAttribute.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CSOEconItemAttribute)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CSOEconItemAttribute: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CSOEconItemAttribute();
+        if (object.def_index != null)
+            message.def_index = object.def_index >>> 0;
+        if (object.value != null)
+            message.value = object.value >>> 0;
+        if (object.value_bytes != null)
+            if (typeof object.value_bytes === "string")
+                $util.base64.decode(object.value_bytes, message.value_bytes = $util.newBuffer($util.base64.length(object.value_bytes)), 0);
+            else if (object.value_bytes.length >= 0)
+                message.value_bytes = object.value_bytes;
+        return message;
+    };
+
+    CSOEconItemAttribute.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.def_index = 0;
+            object.value = 0;
+            if (options.bytes === String)
+                object.value_bytes = "";
+            else {
+                object.value_bytes = [];
+                if (options.bytes !== Array)
+                    object.value_bytes = $util.newBuffer(object.value_bytes);
+            }
+        }
+        if (message.def_index != null && Object.hasOwnProperty.call(message, "def_index"))
+            object.def_index = message.def_index;
+        if (message.value != null && Object.hasOwnProperty.call(message, "value"))
+            object.value = message.value;
+        if (message.value_bytes != null && Object.hasOwnProperty.call(message, "value_bytes"))
+            object.value_bytes = options.bytes === String ? $util.base64.encode(message.value_bytes, 0, message.value_bytes.length) : options.bytes === Array ? Array.prototype.slice.call(message.value_bytes) : message.value_bytes;
+        return object;
+    };
+
+    CSOEconItemAttribute.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CSOEconItemAttribute.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CSOEconItemAttribute";
+    };
+
+    return CSOEconItemAttribute;
+})();
+
+export const CSOEconItemEquipped = $root.CSOEconItemEquipped = (() => {
+
+    function CSOEconItemEquipped(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CSOEconItemEquipped.prototype.new_class = 0;
+    CSOEconItemEquipped.prototype.new_slot = 0;
+
+    CSOEconItemEquipped.create = function create(properties) {
+        return new CSOEconItemEquipped(properties);
+    };
+
+    CSOEconItemEquipped.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.new_class != null && Object.hasOwnProperty.call(message, "new_class"))
+            writer.uint32(8).uint32(message.new_class);
+        if (message.new_slot != null && Object.hasOwnProperty.call(message, "new_slot"))
+            writer.uint32(16).uint32(message.new_slot);
+        return writer;
+    };
+
+    CSOEconItemEquipped.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CSOEconItemEquipped();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.new_class = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    message.new_slot = reader.uint32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CSOEconItemEquipped.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CSOEconItemEquipped)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CSOEconItemEquipped: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CSOEconItemEquipped();
+        if (object.new_class != null)
+            message.new_class = object.new_class >>> 0;
+        if (object.new_slot != null)
+            message.new_slot = object.new_slot >>> 0;
+        return message;
+    };
+
+    CSOEconItemEquipped.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.new_class = 0;
+            object.new_slot = 0;
+        }
+        if (message.new_class != null && Object.hasOwnProperty.call(message, "new_class"))
+            object.new_class = message.new_class;
+        if (message.new_slot != null && Object.hasOwnProperty.call(message, "new_slot"))
+            object.new_slot = message.new_slot;
+        return object;
+    };
+
+    CSOEconItemEquipped.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CSOEconItemEquipped.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CSOEconItemEquipped";
+    };
+
+    return CSOEconItemEquipped;
+})();
+
+export const CMsgCasketItem = $root.CMsgCasketItem = (() => {
+
+    function CMsgCasketItem(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgCasketItem.prototype.casket_item_id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CMsgCasketItem.prototype.item_item_id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+    CMsgCasketItem.create = function create(properties) {
+        return new CMsgCasketItem(properties);
+    };
+
+    CMsgCasketItem.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.casket_item_id != null && Object.hasOwnProperty.call(message, "casket_item_id"))
+            writer.uint32(8).uint64(message.casket_item_id);
+        if (message.item_item_id != null && Object.hasOwnProperty.call(message, "item_item_id"))
+            writer.uint32(16).uint64(message.item_item_id);
+        return writer;
+    };
+
+    CMsgCasketItem.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgCasketItem();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.casket_item_id = reader.uint64();
+                    break;
+                }
+            case 2: {
+                    message.item_item_id = reader.uint64();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgCasketItem.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgCasketItem)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgCasketItem: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgCasketItem();
+        if (object.casket_item_id != null)
+            if ($util.Long)
+                message.casket_item_id = $util.Long.fromValue(object.casket_item_id, true);
+            else if (typeof object.casket_item_id === "string")
+                message.casket_item_id = parseInt(object.casket_item_id, 10);
+            else if (typeof object.casket_item_id === "number")
+                message.casket_item_id = object.casket_item_id;
+            else if (typeof object.casket_item_id === "object")
+                message.casket_item_id = new $util.LongBits(object.casket_item_id.low >>> 0, object.casket_item_id.high >>> 0).toNumber(true);
+        if (object.item_item_id != null)
+            if ($util.Long)
+                message.item_item_id = $util.Long.fromValue(object.item_item_id, true);
+            else if (typeof object.item_item_id === "string")
+                message.item_item_id = parseInt(object.item_item_id, 10);
+            else if (typeof object.item_item_id === "number")
+                message.item_item_id = object.item_item_id;
+            else if (typeof object.item_item_id === "object")
+                message.item_item_id = new $util.LongBits(object.item_item_id.low >>> 0, object.item_item_id.high >>> 0).toNumber(true);
+        return message;
+    };
+
+    CMsgCasketItem.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.casket_item_id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.casket_item_id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.item_item_id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.item_item_id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+        }
+        if (message.casket_item_id != null && Object.hasOwnProperty.call(message, "casket_item_id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.casket_item_id = typeof message.casket_item_id === "number" ? BigInt(message.casket_item_id) : $util.Long.fromBits(message.casket_item_id.low >>> 0, message.casket_item_id.high >>> 0, true).toBigInt();
+            else if (typeof message.casket_item_id === "number")
+                object.casket_item_id = options.longs === String ? String(message.casket_item_id) : message.casket_item_id;
+            else
+                object.casket_item_id = options.longs === String ? $util.Long.prototype.toString.call(message.casket_item_id) : options.longs === Number ? new $util.LongBits(message.casket_item_id.low >>> 0, message.casket_item_id.high >>> 0).toNumber(true) : message.casket_item_id;
+        if (message.item_item_id != null && Object.hasOwnProperty.call(message, "item_item_id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.item_item_id = typeof message.item_item_id === "number" ? BigInt(message.item_item_id) : $util.Long.fromBits(message.item_item_id.low >>> 0, message.item_item_id.high >>> 0, true).toBigInt();
+            else if (typeof message.item_item_id === "number")
+                object.item_item_id = options.longs === String ? String(message.item_item_id) : message.item_item_id;
+            else
+                object.item_item_id = options.longs === String ? $util.Long.prototype.toString.call(message.item_item_id) : options.longs === Number ? new $util.LongBits(message.item_item_id.low >>> 0, message.item_item_id.high >>> 0).toNumber(true) : message.item_item_id;
+        return object;
+    };
+
+    CMsgCasketItem.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgCasketItem.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgCasketItem";
+    };
+
+    return CMsgCasketItem;
+})();
+
+export const CMsgGCItemCustomizationNotification = $root.CMsgGCItemCustomizationNotification = (() => {
+
+    function CMsgGCItemCustomizationNotification(properties) {
+        this.item_id = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgGCItemCustomizationNotification.prototype.item_id = $util.emptyArray;
+    CMsgGCItemCustomizationNotification.prototype.request = 0;
+
+    CMsgGCItemCustomizationNotification.create = function create(properties) {
+        return new CMsgGCItemCustomizationNotification(properties);
+    };
+
+    CMsgGCItemCustomizationNotification.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.item_id != null && message.item_id.length)
+            for (let i = 0; i < message.item_id.length; ++i)
+                writer.uint32(8).uint64(message.item_id[i]);
+        if (message.request != null && Object.hasOwnProperty.call(message, "request"))
+            writer.uint32(16).uint32(message.request);
+        return writer;
+    };
+
+    CMsgGCItemCustomizationNotification.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgGCItemCustomizationNotification();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    if (!(message.item_id && message.item_id.length))
+                        message.item_id = [];
+                    if ((tag & 7) === 2) {
+                        let end2 = reader.uint32() + reader.pos;
+                        if (end2 > reader.len)
+                            throw RangeError("index out of range");
+                        reader.len = end2;
+                        while (reader.pos < end2)
+                            message.item_id.push(reader.uint64());
+                        if (reader.pos !== end2)
+                            throw RangeError("index out of range");
+                        reader.len = end;
+                    } else
+                        message.item_id.push(reader.uint64());
+                    break;
+                }
+            case 2: {
+                    message.request = reader.uint32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgGCItemCustomizationNotification.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgGCItemCustomizationNotification)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgGCItemCustomizationNotification: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgGCItemCustomizationNotification();
+        if (object.item_id) {
+            if (!Array.isArray(object.item_id))
+                throw TypeError(".CMsgGCItemCustomizationNotification.item_id: array expected");
+            message.item_id = [];
+            for (let i = 0; i < object.item_id.length; ++i)
+                if ($util.Long)
+                    message.item_id[i] = $util.Long.fromValue(object.item_id[i], true);
+                else if (typeof object.item_id[i] === "string")
+                    message.item_id[i] = parseInt(object.item_id[i], 10);
+                else if (typeof object.item_id[i] === "number")
+                    message.item_id[i] = object.item_id[i];
+                else if (typeof object.item_id[i] === "object")
+                    message.item_id[i] = new $util.LongBits(object.item_id[i].low >>> 0, object.item_id[i].high >>> 0).toNumber(true);
+        }
+        if (object.request != null)
+            message.request = object.request >>> 0;
+        return message;
+    };
+
+    CMsgGCItemCustomizationNotification.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults)
+            object.item_id = [];
+        if (options.defaults)
+            object.request = 0;
+        if (message.item_id && message.item_id.length) {
+            object.item_id = [];
+            for (let j = 0; j < message.item_id.length; ++j)
+                if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                    object.item_id[j] = typeof message.item_id[j] === "number" ? BigInt(message.item_id[j]) : $util.Long.fromBits(message.item_id[j].low >>> 0, message.item_id[j].high >>> 0, true).toBigInt();
+                else if (typeof message.item_id[j] === "number")
+                    object.item_id[j] = options.longs === String ? String(message.item_id[j]) : message.item_id[j];
+                else
+                    object.item_id[j] = options.longs === String ? $util.Long.prototype.toString.call(message.item_id[j]) : options.longs === Number ? new $util.LongBits(message.item_id[j].low >>> 0, message.item_id[j].high >>> 0).toNumber(true) : message.item_id[j];
+        }
+        if (message.request != null && Object.hasOwnProperty.call(message, "request"))
+            object.request = message.request;
+        return object;
+    };
+
+    CMsgGCItemCustomizationNotification.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgGCItemCustomizationNotification.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgGCItemCustomizationNotification";
+    };
+
+    return CMsgGCItemCustomizationNotification;
+})();
+
 export { $root as default };

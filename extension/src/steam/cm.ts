@@ -192,7 +192,11 @@ export class CmClient {
     this.log(`Connection closed (code ${code})`);
   }
 
-  send(emsg: number, body: Uint8Array = new Uint8Array(0)): void {
+  /**
+   * Sends a message. `routingAppid` is needed for game-coordinator traffic:
+   * the CM uses it to decide which GC the message belongs to.
+   */
+  send(emsg: number, body: Uint8Array = new Uint8Array(0), routingAppid?: number): void {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       throw new CmError('Not connected to Steam');
     }
@@ -203,6 +207,7 @@ export class CmClient {
         client_sessionid: this.sessionId,
         jobid_source: JOBID_NONE,
         jobid_target: JOBID_NONE,
+        ...(routingAppid === undefined ? {} : { routing_appid: routingAppid }),
       },
       body,
     );
