@@ -55,7 +55,8 @@ node dist/cli.js serve     # browse it at http://127.0.0.1:8733
 ```
 
 `login` asks for your account name, password and a Steam Guard code, then
-throws the password away. Later syncs reuse the saved token.
+throws the password away. Later syncs reuse the saved token. The password and
+passphrase prompts echo an asterisk per character; Ctrl+C cancels.
 
 ### Commands
 

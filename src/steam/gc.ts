@@ -32,6 +32,32 @@ export interface LoginResult {
   refreshToken: string | null;
 }
 
+/**
+ * Steam reports login failures as an EResult code with a terse name attached.
+ * These are the ones worth explaining rather than passing through raw.
+ */
+const LOGIN_ERRORS: Record<number, string> = {
+  3: 'Could not reach Steam. Check your internet connection and try again.',
+  5: 'Steam rejected that account name or password.',
+  6: 'Logged in elsewhere: Steam dropped this session because the account signed in somewhere else.',
+  50: 'That account is already signed in to CS2 somewhere else. Close the game and try again.',
+  63: 'This account needs a Steam Guard code to sign in.',
+  65: 'That Steam Guard code was not accepted. Codes expire after 30 seconds, so try a fresh one.',
+  84: 'Steam is rate-limiting sign-ins from this address. Wait a few minutes and try again.',
+  88: 'That Steam Guard code was not accepted. Codes expire after 30 seconds, so try a fresh one.',
+};
+
+/** Turns a steam-user login failure into something worth showing a person. */
+export function describeLoginError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const eresult = (error as { eresult?: number } | null)?.eresult;
+
+  if (typeof eresult === 'number' && LOGIN_ERRORS[eresult]) {
+    return `${LOGIN_ERRORS[eresult]} (Steam said: ${raw})`;
+  }
+  return raw;
+}
+
 export class GcError extends Error {
   constructor(message: string) {
     super(message);

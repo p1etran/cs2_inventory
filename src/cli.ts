@@ -18,11 +18,11 @@ import {
   saveSession,
   SessionLockedError,
 } from './steam/credentials.js';
-import { GcClient } from './steam/gc.js';
+import { describeLoginError, GcClient } from './steam/gc.js';
 import { runSync } from './sync/sync.js';
 import { toCsv } from './util/csv.js';
 import { log } from './util/log.js';
-import { confirm, prompt, promptSecret } from './util/prompt.js';
+import { confirm, prompt, PromptCancelled, promptSecret } from './util/prompt.js';
 
 const USAGE = `cs2inv - a local CS2 inventory index, storage units included
 
@@ -113,6 +113,19 @@ function withDb<T>(config: Config, fn: (db: Db) => T): T {
   }
 }
 
+/**
+ * Ends the process once output has drained. The Steam client keeps timers and
+ * sockets alive after logging off, so a command that talks to Steam would
+ * otherwise sit there looking like it had hung.
+ */
+function exitWhenFlushed(code: number): void {
+  const pending = process.stdout.writableLength + process.stderr.writableLength;
+  if (pending === 0) {
+    process.exit(code);
+  }
+  setTimeout(() => process.exit(code), 100);
+}
+
 function describeLocation(row: ItemRow, containerLabels: Map<string, string>): string {
   if (!row.container_id) return 'inventory';
   return containerLabels.get(row.container_id) ?? `unit ${row.container_id}`;
@@ -128,24 +141,29 @@ async function commandLogin(config: Config): Promise<void> {
   const accountName = await prompt('Steam account name: ');
   const password = await promptSecret('Steam password: ');
 
-  let passphrase = config.passphrase;
-  if (!passphrase) {
-    passphrase =
-      (await promptSecret('Passphrase to encrypt the saved token (blank for none): ')) || null;
-  }
-
   const gc = new GcClient({ dataDirectory: config.dataDir, onProgress: (m) => log.info(m) });
   try {
-    const result = await gc.loginWithPassword({
-      accountName,
-      password,
-      sharedSecret: config.sharedSecret,
-      guardCodeProvider: async (domain) =>
-        prompt(domain ? `Steam Guard code emailed to ${domain}: ` : 'Steam Guard code: '),
-    });
+    const result = await gc
+      .loginWithPassword({
+        accountName,
+        password,
+        sharedSecret: config.sharedSecret,
+        guardCodeProvider: async (domain) =>
+          prompt(domain ? `Steam Guard code emailed to ${domain}: ` : 'Steam Guard code: '),
+      })
+      .catch((error: unknown) => {
+        throw new Error(describeLoginError(error));
+      });
 
     if (!result.refreshToken) {
       throw new Error('Steam did not return a refresh token; cannot save this session.');
+    }
+
+    // Asked only once the login worked, so a failed attempt does not waste it.
+    let passphrase = config.passphrase;
+    if (!passphrase) {
+      passphrase =
+        (await promptSecret('Passphrase to encrypt the saved token (blank for none): ')) || null;
     }
 
     await saveSession(
@@ -169,6 +187,7 @@ async function commandLogin(config: Config): Promise<void> {
   } finally {
     gc.disconnect();
   }
+  exitWhenFlushed(0);
 }
 
 async function commandSync(config: Config, args: Args): Promise<void> {
@@ -196,7 +215,11 @@ async function commandSync(config: Config, args: Args): Promise<void> {
 
   try {
     log.info('logging in to Steam');
-    const { steamId } = await gc.loginWithRefreshToken(session.refreshToken);
+    const { steamId } = await gc.loginWithRefreshToken(session.refreshToken).catch((error: unknown) => {
+      throw new Error(
+        `${describeLoginError(error)} If the saved session has expired, run \`cs2inv login\` again.`,
+      );
+    });
     const summary = await runSync({ db, gc, catalog, steamId, onProgress });
 
     log.info('');
@@ -227,6 +250,7 @@ async function commandSync(config: Config, args: Args): Promise<void> {
     gc.disconnect();
     db.close();
   }
+  exitWhenFlushed(typeof process.exitCode === 'number' ? process.exitCode : 0);
 }
 
 function commandFind(config: Config, args: Args): void {
@@ -451,7 +475,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  if (error instanceof SessionLockedError) {
+  if (error instanceof PromptCancelled) {
+    log.info('Cancelled.');
+  } else if (error instanceof SessionLockedError) {
     log.error(error.message);
   } else {
     log.error(error instanceof Error ? error.message : String(error));
