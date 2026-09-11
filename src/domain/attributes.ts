@@ -80,29 +80,46 @@ export const RARITY_COLORS: Record<number, string> = {
 
 export interface RawAttribute {
   def_index?: number;
-  value_bytes?: Buffer | Uint8Array | null;
+  /** A Node `Buffer` is a `Uint8Array`, so both shapes arrive here unchanged. */
+  value_bytes?: Uint8Array | null;
 }
 
-function toBuffer(value: Buffer | Uint8Array | null | undefined): Buffer | null {
-  if (!value) return null;
-  return Buffer.isBuffer(value) ? value : Buffer.from(value);
-}
-
-/** Returns the raw bytes of an attribute, or null when the item lacks it. */
-export function attrBytes(attributes: RawAttribute[] | undefined, defIndex: number): Buffer | null {
+/**
+ * Returns the raw bytes of an attribute, or null when the item lacks it.
+ *
+ * Deliberately `Uint8Array` rather than `Buffer`, and read below through
+ * `DataView` and `TextDecoder`, so this module runs in a browser as well as in
+ * Node. It is the only part of the domain layer that touches bytes, so keeping
+ * it platform-neutral is what makes the naming logic reusable in an extension.
+ */
+export function attrBytes(
+  attributes: RawAttribute[] | undefined,
+  defIndex: number,
+): Uint8Array | null {
   if (!attributes) return null;
   const found = attributes.find((a) => a.def_index === defIndex);
-  return found ? toBuffer(found.value_bytes) : null;
+  return found?.value_bytes ?? null;
+}
+
+/**
+ * A view over the attribute's bytes.
+ *
+ * The offset and length are always passed: the game coordinator hands back
+ * buffers that are windows into a larger pooled ArrayBuffer, so a view built
+ * from `bytes.buffer` alone would read whatever else happens to share the pool.
+ */
+function viewOf(bytes: Uint8Array): DataView {
+  return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 export function attrUint32(attributes: RawAttribute[] | undefined, defIndex: number): number | null {
   const bytes = attrBytes(attributes, defIndex);
-  return bytes && bytes.length >= 4 ? bytes.readUInt32LE(0) : null;
+  return bytes && bytes.byteLength >= 4 ? viewOf(bytes).getUint32(0, true) : null;
 }
 
 export function attrFloat(attributes: RawAttribute[] | undefined, defIndex: number): number | null {
   const bytes = attrBytes(attributes, defIndex);
-  return bytes && bytes.length >= 4 ? bytes.readFloatLE(0) : null;
+  return bytes && bytes.byteLength >= 4 ? viewOf(bytes).getFloat32(0, true) : null;
 }
 
 /**
@@ -111,8 +128,8 @@ export function attrFloat(attributes: RawAttribute[] | undefined, defIndex: numb
  */
 export function attrString(attributes: RawAttribute[] | undefined, defIndex: number): string | null {
   const bytes = attrBytes(attributes, defIndex);
-  if (!bytes || bytes.length <= 2) return null;
-  return bytes.subarray(2).toString('utf8');
+  if (!bytes || bytes.byteLength <= 2) return null;
+  return new TextDecoder().decode(bytes.subarray(2));
 }
 
 /**
