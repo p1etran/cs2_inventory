@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { encodeNetMessage, JOBID_NONE, PROTO_MASK } from '../extension/src/steam/frame.js';
+import { buildMachineId } from '../extension/src/steam/machineid.js';
 import {
   CAuthentication_BeginAuthSessionViaQR_Request,
   CAuthentication_PollAuthSessionStatus_Request,
@@ -170,6 +172,46 @@ describe('what we send to start a QR sign-in', () => {
       account_name: 'someone',
       had_remote_interaction: true,
     });
+  });
+});
+
+describe('the machine id a client logon carries', () => {
+  /** steam-user's createMachineID, from components/09-logon.js:876-906. */
+  function referenceMachineId(bb3: string, ff2: string, threeB3: string): Buffer {
+    const sha1 = (input: string) => createHash('sha1').update(input, 'utf8').digest('hex');
+    const parts: Buffer[] = [
+      Buffer.from([0]),
+      Buffer.from('MessageObject\0', 'utf8'),
+    ];
+    for (const [name, seed] of [
+      ['BB3', bb3],
+      ['FF2', ff2],
+      ['3B3', threeB3],
+    ] as const) {
+      parts.push(Buffer.from([1]), Buffer.from(`${name}\0`, 'utf8'), Buffer.from(`${sha1(seed)}\0`, 'utf8'));
+    }
+    parts.push(Buffer.from([8, 8]));
+    return Buffer.concat(parts);
+  }
+
+  it('is byte-identical to the reference client\'s', async () => {
+    // A hand-rolled binary KV serialiser with no way to tell it is wrong:
+    // Steam does not reject a malformed machine id, it just treats the client
+    // as something other than what it claims.
+    const ours = await buildMachineId('one', 'two', 'three');
+    expect(hex(ours)).toBe(hex(referenceMachineId('one', 'two', 'three')));
+  });
+
+  it('is the length the reference produces', async () => {
+    // 155 bytes by construction, and the arithmetic in steam-user's comment.
+    const ours = await buildMachineId('a', 'b', 'c');
+    expect(ours.length).toBe(155);
+  });
+
+  it('changes with its seeds', async () => {
+    const a = await buildMachineId('one', 'two', 'three');
+    const b = await buildMachineId('one', 'two', 'four');
+    expect(hex(a)).not.toBe(hex(b));
   });
 });
 

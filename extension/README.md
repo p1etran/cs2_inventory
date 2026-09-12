@@ -91,8 +91,8 @@ loading the extension, not by reading about it.
 
 ## The finding that decides the product
 
-**A browser-session logon cannot get a CS2 game coordinator session.** Measured
-as completely as it can be from outside Valve:
+**The coordinator refuses a client that says it is a web browser.** Two things
+were wrong at once, and separating them took a wrong turn worth recording.
 
 | checked | result |
 | --- | --- |
@@ -100,20 +100,27 @@ as completely as it can be from outside Valve:
 | Hellos actually sent | six over a minute, on a live socket |
 | Steam's game slot | confirmed, `playing_app: 730` |
 | Coordinator reachable | yes — it replies |
-| Coordinator's answer | `NO_SESSION`, every time |
+| Coordinator's answer, browser session | `NO_SESSION` |
+| Coordinator's answer, client token but `ui_mode: 4` | `NO_SESSION` |
 | Upgrading a `['web']` token to `['web','client']` | no such API exists |
 
-So the request is right, it arrives, the account is in-game, and the
-coordinator still refuses. The one remaining variable is the session's
-audience: a browser refresh token is `['web']`, and a game client needs
-`['web','client']`, which is fixed when the session begins and cannot be
-widened afterwards — `GenerateAccessTokenForApp` renews within an audience and
-takes no platform type.
+The first conclusion drawn from the top half of that table was that the token's
+audience was the only remaining variable. That was wrong, and the QR sign-in
+proved it: a real client-audience token, the game slot confirmed, and the
+coordinator still said `NO_SESSION` — because the logon still carried
+`ui_mode: 4`, which means *web browser*. steam-user sets that field only for a
+web logon nonce and never for a token logon.
 
-That closes the no-login idea. Reading storage units needs a client-audience
-token, which means credentials, a QR scan, or a mobile confirmation. Nothing
-else reaches casket contents: the public inventory gives a unit's item count
-and never its contents.
+Both parts are nonetheless required, which is why the conclusion survived being
+wrong about the reason:
+
+- A browser token cannot be paired with a desktop identity — Steam answers
+  `InvalidPassword`. So reporting a desktop client needs a client-audience
+  token, and that needs a QR scan, credentials, or a mobile confirmation.
+- A client token paired with a *web* identity logs on fine and gets nowhere.
+
+Nothing else reaches casket contents: the public inventory gives a unit's item
+count and never its contents.
 
 **What we send the coordinator is byte-identical to the reference client.**
 `test/extension-reference-bytes.test.ts` rebuilds the hello and games-played

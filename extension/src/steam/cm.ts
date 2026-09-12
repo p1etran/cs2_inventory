@@ -21,7 +21,6 @@ import {
   encode,
 } from './protos.js';
 import { cmSocketUrl, fetchCmServers, type CmServer } from './servers.js';
-import type { SteamSession } from './session.js';
 
 /**
  * A Steam client connection, over a WebSocket, good enough to log on and to
@@ -40,13 +39,13 @@ import type { SteamSession } from './session.js';
 
 const PROTOCOL_VERSION = 65580;
 /**
- * The OS type and UI mode a web-based client reports. Both come from
- * steam-user's own handling of a web logon token: 4294966596 is -700 as a
- * uint32, Valve's "web" OS type, and ui_mode 4 marks a web client.
+ * What a desktop client reports for its OS. 16 is EOSType.Windows10.
+ *
+ * The web values that used to live here -- OS type 4294966596 (-700) and
+ * ui_mode 4 -- are gone with the logon that used them: a session identifying
+ * itself that way logs on fine and is granted the game slot, and the CS2
+ * coordinator still answers NO_SESSION to every hello it sends.
  */
-export const CLIENT_OS_WEB = 4294966596;
-export const UI_MODE_WEB = 4;
-/** What steam-user reports on Windows, for the second attempt. */
 export const CLIENT_OS_WINDOWS = 16;
 const ORIGIN_RULE_ID = 1;
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -146,14 +145,6 @@ export interface CmOptions {
    * as the wrong EMsg survived two rounds of fixes.
    */
   traceMessages?: boolean;
-  /**
-   * Overrides the OS type and UI mode the logon reports.
-   *
-   * Steam may not grant a game slot to a session that identifies itself as a
-   * web client, and that question cannot be settled from outside. This is how
-   * the page tries it both ways in one run.
-   */
-  clientIdentity?: { clientOsType: number; uiMode?: number };
 }
 
 export class CmClient {
@@ -166,7 +157,6 @@ export class CmClient {
   private readonly jobs = new Map<string, (result: ServiceResponse) => void>();
   private readonly log: (message: string) => void;
   private readonly trace: boolean;
-  private readonly identity: { clientOsType: number; uiMode?: number };
   private accountInfo: { personaName: string | null } = { personaName: null };
   private playingState: PlayingSessionState | null = null;
   private readonly playingStateWatchers: ((state: PlayingSessionState) => void)[] = [];
@@ -174,7 +164,6 @@ export class CmClient {
   constructor(options: CmOptions = {}) {
     this.log = options.onLog ?? (() => {});
     this.trace = options.traceMessages ?? true;
-    this.identity = options.clientIdentity ?? { clientOsType: CLIENT_OS_WEB, uiMode: UI_MODE_WEB };
   }
 
   /**
@@ -465,65 +454,53 @@ export class CmClient {
    * token's own `sub` claim, and has to be in the header before a session
    * exists, because that is how the CM knows whose logon this is.
    */
-  async logOnWithToken(refreshToken: string, steamId: string): Promise<LogonResult> {
+  async logOnWithToken(
+    refreshToken: string,
+    steamId: string,
+    machineId?: Uint8Array,
+  ): Promise<LogonResult> {
     this.steamId = steamId;
     this.sessionId = 0;
 
     const result = this.awaitLogonResponse();
 
+    /*
+     * A desktop client, field for field as steam-user sends one
+     * (`components/09-logon.js:83-120`, refresh-token path).
+     *
+     * `ui_mode` is the field that matters and the one that was wrong: set to 4
+     * it says "I am a web browser", and the CS2 coordinator answers NO_SESSION
+     * to that however good the token is -- measured, with a client-audience
+     * token from a QR sign-in and the game slot confirmed. steam-user only
+     * sets ui_mode for a web logon nonce, and never for a token logon, so it
+     * is left out here.
+     *
+     * `client_os_type` has no honest answer: the protocol has no value for a
+     * browser extension, and the one that means "web" is exactly what gets
+     * refused. What the account's device list shows is honest -- the QR
+     * sign-in names itself -- and that is the part a person actually reads.
+     */
     this.send(
       EMsg.ClientLogon,
       encode(CMsgClientLogon, {
         protocol_version: PROTOCOL_VERSION,
         access_token: refreshToken,
-        client_os_type: this.identity.clientOsType,
-        ...(this.identity.uiMode === undefined ? {} : { ui_mode: this.identity.uiMode }),
+        client_os_type: CLIENT_OS_WINDOWS,
         chat_mode: 2,
         should_remember_password: true,
         supports_rate_limit_response: true,
+        machine_name: '',
+        client_language: 'english',
+        obfuscated_private_ip: { v4: 0 },
+        ...(machineId ? { machine_id: machineId } : {}),
       }),
     );
-    this.log('Logon sent with the saved sign-in');
+    this.log(`Logon sent as a desktop client (OS type ${CLIENT_OS_WINDOWS})`);
 
     return result;
   }
 
-  /**
-   * Logs on with the refresh token from the browser's Steam session.
-   *
-   * The header must carry the account's SteamID before a session exists,
-   * because that is how the CM knows whose logon this is.
-   */
-  async logOn(session: SteamSession): Promise<LogonResult> {
-    this.steamId = session.steamId;
-    this.sessionId = 0;
-
-    const result = this.awaitLogonResponse();
-
-    // A web logon token is a different shape of logon from a password or a
-    // refresh token: Steam expects the web OS type and UI mode, and none of
-    // the fields a desktop client would send. steam-user strips exactly these
-    // for this path, and sending them anyway is a way to be refused.
-    this.send(
-      EMsg.ClientLogon,
-      encode(CMsgClientLogon, {
-        protocol_version: PROTOCOL_VERSION,
-        web_logon_nonce: session.webLogonToken,
-        account_name: session.accountName,
-        client_os_type: this.identity.clientOsType,
-        ...(this.identity.uiMode === undefined ? {} : { ui_mode: this.identity.uiMode }),
-        chat_mode: 2,
-      }),
-    );
-    this.log(
-      `Logon sent as OS type ${this.identity.clientOsType}` +
-        `${this.identity.uiMode === undefined ? ' with no UI mode' : `, UI mode ${this.identity.uiMode}`}`,
-    );
-
-    return result;
-  }
-
-  /** Both logon paths get the same answer, so they wait for it the same way. */
+  /** The reply Steam sends to a logon, whichever way it was made. */
   private awaitLogonResponse(): Promise<LogonResult> {
     return new Promise<LogonResult>((resolve, reject) => {
       const timer = setTimeout(

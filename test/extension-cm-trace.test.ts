@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { CmClient } from '../extension/src/steam/cm.js';
 import { EMsg } from '../extension/src/steam/emsg.js';
 import { decodeNetMessage, encodeNetMessage } from '../extension/src/steam/frame.js';
-import { CMsgClientPlayingSessionState, encode } from '../extension/src/steam/protos.js';
+import {
+  CMsgClientLogon,
+  CMsgClientPlayingSessionState,
+  decode,
+  encode,
+} from '../extension/src/steam/protos.js';
 
 /**
  * The message trace, tested directly.
@@ -201,6 +206,77 @@ describe('service calls with no account', () => {
     // One field, protocol_version -- the GC's CMsgClientHello is a different
     // message that happens to share a name.
     expect(sent.body.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the logon a saved sign-in makes', () => {
+  function withSocket(client: CmClient): Uint8Array[] {
+    const frames: Uint8Array[] = [];
+    (client as unknown as { socket: unknown }).socket = {
+      readyState: 1,
+      send: (frame: Uint8Array) => frames.push(frame),
+    };
+    return frames;
+  }
+
+  function logonFields(frames: Uint8Array[]) {
+    const sent = decodeNetMessage(frames[0] as Uint8Array);
+    expect(sent.emsg).toBe(EMsg.ClientLogon);
+    return decode<{
+      access_token?: string;
+      client_os_type?: number;
+      ui_mode?: number;
+      account_name?: string;
+      machine_id?: Uint8Array;
+    }>(CMsgClientLogon, sent.body);
+  }
+
+  it('never says it is a web browser', () => {
+    const { client } = clientWithLog();
+    const frames = withSocket(client);
+    void client.logOnWithToken('the-token', '76561198061412334').catch(() => {});
+
+    const fields = logonFields(frames);
+    // This is the bug that cost a round: with a client-audience token from a
+    // QR sign-in and the game slot confirmed, ui_mode 4 still got NO_SESSION
+    // from the CS2 coordinator. steam-user sets it only for a web logon nonce.
+    expect(fields.ui_mode).toBeUndefined();
+    // 16 is EOSType.Windows10; the "web" OS type is what gets refused.
+    expect(fields.client_os_type).toBe(16);
+  });
+
+  it('carries the token and no account name, as Steam requires', () => {
+    const { client } = clientWithLog();
+    const frames = withSocket(client);
+    void client.logOnWithToken('the-token', '76561198061412334').catch(() => {});
+
+    const fields = logonFields(frames);
+    expect(fields.access_token).toBe('the-token');
+    // Steam refuses a logon that sends both a token and an account name.
+    expect(fields.account_name).toBeUndefined();
+  });
+
+  it('sends the machine id when it has one, and omits it otherwise', () => {
+    const { client } = clientWithLog();
+    const frames = withSocket(client);
+    const id = new Uint8Array([1, 2, 3]);
+
+    void client.logOnWithToken('t', '765', id).catch(() => {});
+    expect(logonFields(frames).machine_id).toEqual(id);
+
+    const second = clientWithLog();
+    const moreFrames = withSocket(second.client);
+    void second.client.logOnWithToken('t', '765').catch(() => {});
+    expect(logonFields(moreFrames).machine_id).toBeUndefined();
+  });
+
+  it('puts the account\'s SteamID in the header, before a session exists', () => {
+    const { client } = clientWithLog();
+    const frames = withSocket(client);
+    void client.logOnWithToken('t', '76561198061412334').catch(() => {});
+
+    // It is how the connection manager knows whose logon this is.
+    expect(decodeNetMessage(frames[0] as Uint8Array).header.steamid).toBe('76561198061412334');
   });
 });
 

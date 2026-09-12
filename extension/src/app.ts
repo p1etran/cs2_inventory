@@ -1,7 +1,8 @@
 import { Catalog, normalizeEconItem, readCasketId, type CatalogIndex } from '../../src/core.js';
 import { signInWithQr } from './steam/auth.js';
-import { CLIENT_OS_WEB, CmClient, UI_MODE_WEB, removeOriginRule } from './steam/cm.js';
+import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
+import { machineId } from './steam/machineid.js';
 import { forgetSession, inspectToken, loadSession, saveSession } from './steam/tokens.js';
 import { renderQrSvg } from './ui/qr.js';
 
@@ -156,31 +157,14 @@ async function ensureSignedIn(cm: CmClient): Promise<{ refreshToken: string; ste
   return { refreshToken: signedIn.refreshToken, steamId: status.steamId };
 }
 
-/**
- * The logon identifies this client as a web one, and has to.
- *
- * Measured, not assumed: a web logon token offered with a desktop OS type and
- * no UI mode is refused with `InvalidPassword`, while the web pairing
- * steam-user uses logs on fine. So the token and the identity go together, and
- * the desktop variant is not a fallback worth spending a logon on.
- *
- * This also settles a question that was open for two rounds: a web-mode session
- * *is* allowed to play a game. Steam confirms the game slot as app 730, and the
- * coordinator does reply. Whatever is wrong is past that point.
- */
-const WEB_IDENTITY = { clientOsType: CLIENT_OS_WEB, uiMode: UI_MODE_WEB };
-
 /** Logs on and reaches the GC, or throws. Leaves the connection open on success. */
 async function reachGc(): Promise<{ client: CmClient; gc: GcClient }> {
-  const client = new CmClient({
-    onLog: (message) => write(message, 'dim'),
-    clientIdentity: WEB_IDENTITY,
-  });
+  const client = new CmClient({ onLog: (message) => write(message, 'dim') });
 
   await client.connect();
   const { refreshToken, steamId } = await ensureSignedIn(client);
 
-  const logon = await client.logOnWithToken(refreshToken, steamId);
+  const logon = await client.logOnWithToken(refreshToken, steamId, await machineId());
   showAccount(logon.personaName ?? logon.steamId, logon.steamId);
   write(`Logged on as ${logon.steamId}`, 'ok');
   signOutButton.hidden = false;
