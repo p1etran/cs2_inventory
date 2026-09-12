@@ -473,6 +473,56 @@ describe('when the coordinator answers but does not welcome us', () => {
     }
   });
 
+  it('sends no hello after it has given up', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      const settled = gc.connect().catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(600);
+
+      // Each status reply used to fork a second chain of hellos, and a fork
+      // outlived connect() -- firing against a closed socket.
+      for (let i = 0; i < 3; i += 1) {
+        deliver(GcMsg.ClientConnectionStatus, encode(CMsgConnectionStatus, { status: 2 }));
+        await vi.advanceTimersByTimeAsync(2_000);
+      }
+
+      await vi.advanceTimersByTimeAsync(61_000);
+      await settled;
+
+      const afterGivingUp = sent.filter((m) => m.emsg === EMsg.ClientToGC).length;
+      await vi.advanceTimersByTimeAsync(300_000);
+      expect(sent.filter((m) => m.emsg === EMsg.ClientToGC).length).toBe(afterGivingUp);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps one chain of hellos, not one per status reply', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      void gc.connect().catch(() => {});
+      await vi.advanceTimersByTimeAsync(600);
+
+      const helloCount = () => sent.filter((m) => m.emsg === EMsg.ClientToGC).length;
+      // Three replies, three immediate retries -- and no extra pending timers
+      // left behind to double up later.
+      for (let i = 0; i < 3; i += 1) {
+        deliver(GcMsg.ClientConnectionStatus, encode(CMsgConnectionStatus, { status: 2 }));
+      }
+      expect(helloCount()).toBe(4);
+
+      // One chain means one hello on the next tick, not three.
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(helloCount()).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('reports a status that is not a queue by name', async () => {
     vi.useFakeTimers();
     try {

@@ -426,6 +426,10 @@ export class GcClient {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let retryMs = HELLO_RETRY_MS;
     const sendHello = (): void => {
+      // Cancel any pending attempt first. A status reply calls this directly,
+      // so without it each reply forks a second chain of hellos, and a fork
+      // outlives connect() and fires after the socket is gone.
+      clearTimeout(timer);
       if (this.welcomed) return;
       try {
         this.sendToGc(GcMsg.ClientHello, encode(CMsgClientHello, HELLO));
@@ -445,6 +449,8 @@ export class GcClient {
       await Promise.race([welcome, blocked]);
     } finally {
       clearTimeout(timer);
+      // Nothing may schedule a hello once this has settled.
+      this.helloAgain = null;
     }
   }
 
