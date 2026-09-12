@@ -77,6 +77,22 @@ anything is encoded. `extension/scripts/gen-protos.mjs` therefore compiles a
 static module — plain encode/decode functions, no eval. This was found by
 loading the extension, not by reading about it.
 
+**Steam ignores a message it does not recognise.** There is no error, so a
+wrong message id shows up as silence. Games-played was being sent as EMsg 742
+(`ClientGamesPlayed`), which Steam no longer acts on: the account stayed not
+in-game, so the CS2 coordinator ignored every hello and never replied. The
+working id is 5410 (`ClientGamesPlayedWithDataBlob`), which is the only one
+steam-user sends. The hello also has to report a `version` -- an empty one gets
+no answer either.
+
+Because that whole class of mistake is invisible on the wire,
+`test/extension-emsg.test.ts` checks every id and result code against
+steam-user's enums rather than trusting the transcription. It found four wrong
+`EResult` codes on its first run: `Busy` was really `Pending`, `Revoked` was
+`AlreadyRedeemed`, `TryAnotherCM` was `IPTInitError`, and
+`AccountLoginDeniedNeedTwoFactor` was `AccountLogonDenied`. Each would have
+explained a logon failure as the wrong thing.
+
 **A bundler renames anything that is not an export.** esbuild emits the
 generated `CMsgClientHello` class as `CMsgClientHello2` to avoid a collision,
 so `type.name` is `"CMsgClientHello2"` in the built extension. `encode` guards

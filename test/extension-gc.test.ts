@@ -5,6 +5,8 @@ import { decodeNetMessage, encodeNetMessage } from '../extension/src/steam/frame
 import { GcClient, GcError, GcMsg, type GcEconItem } from '../extension/src/steam/gc.js';
 import {
   CMsgCasketItem,
+  CMsgClientHello,
+  CMsgClientWelcome,
   CMsgGCClient,
   CMsgGCItemCustomizationNotification,
   CMsgSOCacheSubscribed,
@@ -104,30 +106,94 @@ const casketIdOf = (item: GcEconItem) => readCasketId(item.attribute);
 const clientFor = (cm: CmClient) => new GcClient(cm, { casketIdOf });
 
 describe('game coordinator envelope', () => {
-  it('wraps a message so the msgtype appears in both the envelope and the payload', () => {
-    const { cm, sent } = fakeCm();
-    const gc = clientFor(cm);
-
-    // connect() sends games-played then a hello; the hello is the GC message.
+  /** Runs connect() far enough to have sent its first hello. */
+  async function helloFrom(gc: GcClient, sent: Sent[]): Promise<Sent> {
     void gc.connect().catch(() => {});
+    await vi.advanceTimersByTimeAsync(600);
+    const toGc = sent.find((m) => m.emsg === EMsg.ClientToGC);
+    expect(toGc).toBeDefined();
+    return toGc as Sent;
+  }
 
-    const gamesPlayed = sent[0];
-    expect(gamesPlayed?.emsg).toBe(EMsg.ClientGamesPlayed);
+  it('wraps a message so the msgtype appears in both the envelope and the payload', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent } = fakeCm();
+      const gc = clientFor(cm);
+      const toGc = await helloFrom(gc, sent);
 
-    const toGc = sent[1];
-    expect(toGc?.emsg).toBe(EMsg.ClientToGC);
-    // The CM needs routing_appid to know which GC this belongs to.
-    expect(toGc?.routingAppid).toBe(CS2_APPID);
+      // The literal, not the constant: comparing against our own EMsg would
+      // hold however wrong that value was. Steam stopped acting on 742
+      // (ClientGamesPlayed), and with that one the account is never in-game,
+      // so the GC ignores every hello and never replies.
+      expect(sent[0]?.emsg).toBe(5410);
 
-    const envelope = decode<{ appid: number; msgtype: number; payload: Uint8Array }>(
-      CMsgGCClient,
-      toGc?.body ?? new Uint8Array(),
-    );
-    expect(envelope.appid).toBe(CS2_APPID);
-    expect(envelope.msgtype).toBe((GcMsg.ClientHello | PROTO_MASK) >>> 0);
+      // The CM needs routing_appid to know which GC this belongs to.
+      expect(toGc.routingAppid).toBe(CS2_APPID);
 
-    // The payload carries its own header repeating the same message id.
-    expect(decodeNetMessage(envelope.payload).emsg).toBe(GcMsg.ClientHello);
+      const envelope = decode<{ appid: number; msgtype: number; payload: Uint8Array }>(
+        CMsgGCClient,
+        toGc.body,
+      );
+      expect(envelope.appid).toBe(CS2_APPID);
+      expect(envelope.msgtype).toBe((GcMsg.ClientHello | PROTO_MASK) >>> 0);
+
+      // The payload carries its own header repeating the same message id.
+      expect(decodeNetMessage(envelope.payload).emsg).toBe(GcMsg.ClientHello);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('tells the GC a version, which it will not answer without', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent } = fakeCm();
+      const gc = clientFor(cm);
+      const toGc = await helloFrom(gc, sent);
+
+      const envelope = decode<{ payload: Uint8Array }>(CMsgGCClient, toGc.body);
+      const hello = decode<{ version?: number }>(
+        CMsgClientHello,
+        decodeNetMessage(envelope.payload).body,
+      );
+      // An empty hello gets no reply. The value is the one `globaloffensive`
+      // sends, which reads storage units today.
+      expect(hello.version).toBe(2000244);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps saying hello, backing off, until the welcome arrives', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      const connected = gc.connect();
+      const helloCount = () => sent.filter((m) => m.emsg === EMsg.ClientToGC).length;
+
+      // The GC drops a hello often enough that one attempt is not enough.
+      await vi.advanceTimersByTimeAsync(600);
+      expect(helloCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(helloCount()).toBeGreaterThan(1);
+
+      // Backing off rather than a fixed interval, so a busy GC is not hammered.
+      const byFiveSeconds = helloCount();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(helloCount() - byFiveSeconds).toBeLessThan(byFiveSeconds);
+
+      deliver(GcMsg.ClientWelcome, encode(CMsgClientWelcome, { version: 1 }));
+      await connected;
+
+      // And it stops once welcomed.
+      const atWelcome = helloCount();
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(helloCount()).toBe(atWelcome);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('ignores traffic for another app', () => {

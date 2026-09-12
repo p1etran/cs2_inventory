@@ -53,8 +53,22 @@ const NOTIFICATION_CASKET_CONTENTS = 1012;
 /** Storage units report how many items they hold in this attribute. */
 const DEF_STORAGE_UNIT = 1201;
 
-const WELCOME_TIMEOUT_MS = 45_000;
+const WELCOME_TIMEOUT_MS = 60_000;
 const CASKET_TIMEOUT_MS = 30_000;
+
+/**
+ * What the hello reports itself as. Taken from the `globaloffensive` library,
+ * which the local CLI uses and which reads storage units today, so this exact
+ * value is known to be one the GC accepts. An empty hello is not: the GC wants
+ * a version and simply does not reply without one.
+ */
+const HELLO = { version: 2000244, client_session_need: 0, client_launcher: 0, steam_launcher: 0 };
+
+/** First hello, after Steam has had a moment to register the game session. */
+const HELLO_DELAY_MS = 500;
+/** Doubling from here, as the real client does, so a busy GC is not hammered. */
+const HELLO_RETRY_MS = 1000;
+const HELLO_RETRY_MAX_MS = 60_000;
 
 /** A CSOEconItem as decoded off the wire, ready for `normalizeEconItem`. */
 export interface GcEconItem {
@@ -223,7 +237,7 @@ export class GcClient {
    */
   async connect(): Promise<void> {
     this.cm.send(
-      EMsg.ClientGamesPlayed,
+      EMsg.ClientGamesPlayedWithDataBlob,
       encode(CMsgClientGamesPlayed, { games_played: [{ game_id: String(CS2_APPID) }] }),
     );
     this.log('Reported CS2 as running');
@@ -264,19 +278,23 @@ export class GcClient {
       this.on(GcMsg.ClientWelcome, onWelcome);
     });
 
-    const hello = setInterval(() => {
-      if (this.welcomed) {
-        clearInterval(hello);
-        return;
-      }
-      this.sendToGc(GcMsg.ClientHello, encode(CMsgClientHello, {}));
-    }, 2000);
-    this.sendToGc(GcMsg.ClientHello, encode(CMsgClientHello, {}));
+    // Repeated until the welcome arrives, because the GC drops a hello often
+    // enough that one attempt is not enough. Backing off rather than a fixed
+    // interval, matching the real client.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let retryMs = HELLO_RETRY_MS;
+    const sendHello = (): void => {
+      if (this.welcomed) return;
+      this.sendToGc(GcMsg.ClientHello, encode(CMsgClientHello, HELLO));
+      retryMs = Math.min(HELLO_RETRY_MAX_MS, retryMs * 2);
+      timer = setTimeout(sendHello, retryMs);
+    };
+    timer = setTimeout(sendHello, HELLO_DELAY_MS);
 
     try {
       await welcome;
     } finally {
-      clearInterval(hello);
+      clearTimeout(timer);
     }
   }
 

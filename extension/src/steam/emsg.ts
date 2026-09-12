@@ -8,7 +8,10 @@ export const EMsg = {
   ClientHeartBeat: 703,
   ClientLogOnResponse: 751,
   ClientLoggedOff: 757,
-  ClientGamesPlayed: 742,
+  // 742 is `ClientGamesPlayed`, which Steam no longer acts on: sending it
+  // leaves the account not in-game, so the CS2 coordinator ignores the hello
+  // that follows and never answers. steam-user sends only this one.
+  ClientGamesPlayedWithDataBlob: 5410,
   ClientAccountInfo: 768,
   ClientToGC: 5452,
   ClientFromGC: 5453,
@@ -31,17 +34,17 @@ export const EResult = {
   InvalidPassword: 5,
   LoggedInElsewhere: 6,
   InvalidProtocolVer: 7,
+  Busy: 10,
+  AccessDenied: 15,
   Timeout: 16,
   ServiceUnavailable: 20,
-  Busy: 22,
-  AccessDenied: 15,
+  Revoked: 26,
   Expired: 27,
-  Revoked: 28,
+  TryAnotherCM: 48,
   AlreadyLoggedInElsewhere: 50,
-  RateLimitExceeded: 84,
-  AccountLoginDeniedNeedTwoFactor: 63,
   AccountLogonDenied: 63,
-  TryAnotherCM: 68,
+  RateLimitExceeded: 84,
+  AccountLoginDeniedNeedTwoFactor: 85,
 } as const;
 
 /**
@@ -50,20 +53,25 @@ export const EResult = {
  * browser is the fix.
  */
 const LOGON_FAILURES: Record<number, string> = {
-  2: 'Steam refused the logon without saying why. Worth retrying.',
-  3: 'No connection to Steam.',
-  5: 'Steam rejected the saved session. Sign in to Steam again in this browser.',
-  6: 'Signed in elsewhere; Steam dropped this session.',
-  7: 'This client reported a protocol version Steam no longer accepts.',
-  15: 'Access denied for this account.',
-  16: 'Steam timed out.',
-  20: 'Steam is temporarily unavailable. Try again shortly.',
-  22: 'Steam is busy. Try again shortly.',
-  27: 'The saved Steam session has expired. Sign in to Steam again in this browser.',
-  28: 'The saved Steam session was revoked. Sign in to Steam again in this browser.',
-  50: 'This account is already signed in to CS2 somewhere else.',
-  68: 'Steam asked us to use a different server.',
-  84: 'Steam is rate-limiting sign-ins from this address. Wait a few minutes.',
+  [EResult.Fail]: 'Steam refused the logon without saying why. Worth retrying.',
+  [EResult.NoConnection]: 'No connection to Steam.',
+  [EResult.InvalidPassword]:
+    'Steam rejected the saved session. Sign in to Steam again in this browser.',
+  [EResult.LoggedInElsewhere]: 'Signed in elsewhere; Steam dropped this session.',
+  [EResult.InvalidProtocolVer]:
+    'This client reported a protocol version Steam no longer accepts.',
+  [EResult.Busy]: 'Steam is busy. Try again shortly.',
+  [EResult.AccessDenied]: 'Access denied for this account.',
+  [EResult.Timeout]: 'Steam timed out.',
+  [EResult.ServiceUnavailable]: 'Steam is temporarily unavailable. Try again shortly.',
+  [EResult.Revoked]:
+    'The saved Steam session was revoked. Sign in to Steam again in this browser.',
+  [EResult.Expired]:
+    'The saved Steam session has expired. Sign in to Steam again in this browser.',
+  [EResult.TryAnotherCM]: 'Steam asked us to use a different server.',
+  [EResult.AlreadyLoggedInElsewhere]: 'This account is already signed in to CS2 somewhere else.',
+  [EResult.RateLimitExceeded]:
+    'Steam is rate-limiting sign-ins from this address. Wait a few minutes.',
 };
 
 export function describeEResult(eresult: number): string {
