@@ -77,6 +77,19 @@ anything is encoded. `extension/scripts/gen-protos.mjs` therefore compiles a
 static module — plain encode/decode functions, no eval. This was found by
 loading the extension, not by reading about it.
 
+**What we send the coordinator is byte-identical to the reference client.**
+`test/extension-reference-bytes.test.ts` rebuilds the hello and games-played
+through steam-user's and globaloffensive's own generated codecs — the code the
+working local CLI runs — and compares bytes. They match. So when the
+coordinator answers `NO_SESSION`, it is not answering a malformed request, and
+the remaining variable is what kind of session is asking.
+
+**Both directions are traced.** Tracing only inbound messages left "is the
+hello even being sent" unanswerable across two runs against the real
+coordinator, so `send` logs too. A hello that cannot be sent is logged rather
+than lost: it runs inside a timer, where an uncaught throw would disappear and
+the connection would merely look ignored.
+
 **A web-mode logon can play a game — measured.** This was open for two rounds.
 Steam confirms the game slot as app 730 for a session logged on with a web
 logon token, and the coordinator does reply. The pairing is mandatory in the

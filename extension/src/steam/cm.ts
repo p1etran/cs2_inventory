@@ -247,6 +247,9 @@ export class CmClient {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       throw new CmError('Not connected to Steam');
     }
+    // Outbound as well as inbound. Tracing only what arrives left "are the
+    // hellos even being sent" unanswerable across two runs.
+    if (this.trace) this.log(`-> ${emsgName(emsg)}`);
     const message = encodeNetMessage(
       emsg,
       {

@@ -52,6 +52,42 @@ describe('the message trace', () => {
   });
 });
 
+describe('the outbound trace', () => {
+  /** Stands in for an open socket, capturing the frames handed to it. */
+  function withSocket(client: CmClient): Uint8Array[] {
+    const frames: Uint8Array[] = [];
+    (client as unknown as { socket: unknown }).socket = {
+      readyState: 1, // WebSocket.OPEN
+      send: (frame: Uint8Array) => frames.push(frame),
+    };
+    return frames;
+  }
+
+  it('names what we send, not only what arrives', () => {
+    const { client, lines } = clientWithLog();
+    const frames = withSocket(client);
+
+    client.send(EMsg.ClientHeartBeat, new Uint8Array(0));
+
+    expect(lines).toContainEqual('-> ClientHeartBeat (703)');
+    // And it really went to the socket, so the trace is not the only effect.
+    expect(frames).toHaveLength(1);
+  });
+
+  it('can be turned off with the inbound trace', () => {
+    const { client, lines } = clientWithLog({ traceMessages: false });
+    withSocket(client);
+
+    client.send(EMsg.ClientHeartBeat, new Uint8Array(0));
+    expect(lines.filter((line) => line.startsWith('->'))).toEqual([]);
+  });
+
+  it('throws rather than silently dropping a frame with no socket', () => {
+    const { client } = clientWithLog();
+    expect(() => client.send(EMsg.ClientHeartBeat, new Uint8Array(0))).toThrow(/Not connected/);
+  });
+});
+
 describe('the playing-session state', () => {
   const playingState = (fields: { playing_blocked?: boolean; playing_app?: number }) =>
     encodeNetMessage(

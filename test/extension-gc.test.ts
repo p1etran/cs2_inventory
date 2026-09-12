@@ -167,6 +167,46 @@ describe('game coordinator envelope', () => {
     }
   });
 
+  it('traces what it sends, not only what arrives', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent } = fakeCm();
+      const logged: string[] = [];
+      const gc = new GcClient(cm, { casketIdOf, onLog: (m) => logged.push(m) });
+      await helloFrom(gc, sent);
+
+      // Inbound-only tracing left "is the hello even being sent" open across
+      // two runs against the real coordinator.
+      expect(logged).toContainEqual('-> GC ClientHello (4006)');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a hello it could not send, instead of losing it in a timer', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm } = fakeCm();
+      const logged: string[] = [];
+      const gc = new GcClient(cm, { casketIdOf, onLog: (m) => logged.push(m) });
+
+      // A disconnect between games-played and the hello throws inside the
+      // timer, where nothing was catching it.
+      const failing = cm as unknown as { send: (...args: unknown[]) => void };
+      const original = failing.send;
+      void gc.connect().catch(() => {});
+      failing.send = () => {
+        throw new Error('Not connected to Steam');
+      };
+      await vi.advanceTimersByTimeAsync(600);
+      failing.send = original;
+
+      expect(logged.some((line) => /Could not send hello: Not connected/.test(line))).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('sets jobid_source explicitly, as the reference client does', async () => {
     vi.useFakeTimers();
     try {
@@ -409,6 +449,25 @@ describe('when the coordinator answers but does not welcome us', () => {
       const error = (await settled) as Error;
       expect(error).toBeInstanceOf(GcError);
       expect(error.message).toContain('permanently banned');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says hello again when told NO_SESSION', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      void gc.connect().catch(() => {});
+      await vi.advanceTimersByTimeAsync(600);
+
+      const before = sent.filter((m) => m.emsg === EMsg.ClientToGC).length;
+      deliver(GcMsg.ClientConnectionStatus, encode(CMsgConnectionStatus, { status: 2 }));
+
+      // The coordinator answered, just not with a session. That is an
+      // invitation to retry, not merely something to log.
+      expect(sent.filter((m) => m.emsg === EMsg.ClientToGC).length).toBe(before + 1);
     } finally {
       vi.useRealTimers();
     }

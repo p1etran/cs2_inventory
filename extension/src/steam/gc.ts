@@ -72,6 +72,7 @@ const GC_STATUS: Record<number, string> = {
   4: 'NO_STEAM',
 };
 const STATUS_IN_LOGON_QUEUE = 3;
+const STATUS_NO_SESSION = 2;
 
 /** Shared-object type for an econ item. Everything else in the cache is ignored. */
 const SO_TYPE_ECON_ITEM = 1;
@@ -144,6 +145,8 @@ export class GcClient {
   private welcomed = false;
   /** The last connection status the GC reported, if it reported one. */
   private status: { status: number; queuePosition: number; waitSeconds: number } | null = null;
+  /** Set while connect() is waiting, so a status reply can prompt another hello. */
+  private helloAgain: (() => void) | null = null;
 
   constructor(
     private readonly cm: CmClient,
@@ -219,6 +222,7 @@ export class GcClient {
   }
 
   private sendToGc(gcMsg: number, body: Uint8Array = new Uint8Array(0)): void {
+    this.log(`-> GC ${gcMsgName(gcMsg)}`);
     // The envelope's msgtype carries the protobuf flag, and the payload
     // repeats it in its own header. Both are what the CM expects.
     // jobid_source explicitly, as steam-user does, rather than relying on the
@@ -269,6 +273,10 @@ export class GcClient {
       return;
     }
     this.log(`Game coordinator connection status: ${name}`);
+
+    // The coordinator answered, just not with a session. Saying hello again
+    // costs nothing, and the backoff still governs how often that happens.
+    if (status === STATUS_NO_SESSION && !this.welcomed) this.helloAgain?.();
   }
 
   /** A refusal with a reason, which is worth showing rather than swallowing. */
@@ -419,10 +427,18 @@ export class GcClient {
     let retryMs = HELLO_RETRY_MS;
     const sendHello = (): void => {
       if (this.welcomed) return;
-      this.sendToGc(GcMsg.ClientHello, encode(CMsgClientHello, HELLO));
+      try {
+        this.sendToGc(GcMsg.ClientHello, encode(CMsgClientHello, HELLO));
+      } catch (error) {
+        // This runs in a timer, so an uncaught throw here would vanish
+        // without failing the connect -- the connection would just look
+        // ignored. Say it instead.
+        this.log(`Could not send hello: ${error instanceof Error ? error.message : error}`);
+      }
       retryMs = Math.min(HELLO_RETRY_MAX_MS, retryMs * 2);
       timer = setTimeout(sendHello, retryMs);
     };
+    this.helloAgain = sendHello;
     timer = setTimeout(sendHello, HELLO_DELAY_MS);
 
     try {
