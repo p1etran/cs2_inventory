@@ -27,8 +27,12 @@ a thing you press, not a thing you wait for.
 Driven in Chromium against a seeded 15,608-item index: every interaction
 (search, tab switch, page, unit filter) renders in about 35 ms.
 
-Still to come: a view of the public inventory before sign-in, so the extension
-shows something real before asking for anything.
+**Before you sign in, it shows your real inventory.** The public inventory
+needs no sign-in -- the browser already holds a Steam session -- and it carries
+every loose item plus each storage unit's label and item count. So a new user
+sees their own things immediately, and can see exactly what signing in would
+add: what is *inside* those units, which is the one thing that endpoint will
+never return.
 
 ## Build and load
 

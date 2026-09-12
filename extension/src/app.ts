@@ -3,6 +3,8 @@ import { signInWithQr } from './steam/auth.js';
 import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
 import { machineId } from './steam/machineid.js';
+import { readPublicInventory, type InventoryPreview } from './steam/publicinventory.js';
+import { readSteamSession } from './steam/session.js';
 import { forgetSession, inspectToken, loadSession, saveSession } from './steam/tokens.js';
 import { Store, type SearchOptions } from './store.js';
 import { runSync } from './sync.js';
@@ -13,6 +15,8 @@ import {
   emptyMessage,
   eventRow,
   itemRow,
+  previewRow,
+  previewUnitRow,
   renderContainers,
   renderStats,
   stackRow,
@@ -46,6 +50,8 @@ const state = {
   view: 'items' as 'items' | 'stacks' | 'changes',
   page: 0,
   syncing: false,
+  /** The public inventory, shown only until there is a real index. */
+  preview: null as InventoryPreview | null,
 };
 
 /** Unit labels by asset id, so rows can say where an item lives. */
@@ -66,6 +72,11 @@ function currentOptions(): SearchOptions {
 }
 
 function render(): void {
+  if (store.items.length === 0 && state.preview) {
+    renderPreview(state.preview);
+    return;
+  }
+
   const containers = store.listContainers();
   labels.clear();
   for (const container of containers) labels.set(container.assetId, container.label);
@@ -135,6 +146,47 @@ function render(): void {
   $('page-label').textContent = paged && total > PAGE_SIZE ? `Page ${state.page + 1} of ${pages}` : '';
   ($('prev') as HTMLButtonElement).disabled = !paged || state.page === 0;
   ($('next') as HTMLButtonElement).disabled = !paged || state.page + 1 >= pages;
+}
+
+/**
+ * The page before anyone has signed in.
+ *
+ * Deliberately the same layout as the real thing, with the filters disabled
+ * and every unit showing a count it cannot open. Somebody should see their own
+ * inventory before being asked to scan anything -- and should be able to tell
+ * at a glance what signing in would add.
+ */
+function renderPreview(preview: InventoryPreview): void {
+  const stats: [string, string][] = [
+    ['Loose items', preview.looseCount.toLocaleString()],
+    ['In units', preview.storedCount.toLocaleString()],
+    ['Units', String(preview.units.length)],
+    ['Distinct', preview.items.length.toLocaleString()],
+  ];
+  $('stats').replaceChildren(
+    ...stats.map(([label, value]) => {
+      const tile = el('div', 'stat');
+      tile.append(el('b', null, value), el('span', null, label));
+      return tile;
+    }),
+  );
+
+  $('containers').replaceChildren(...preview.units.map(previewUnitRow));
+
+  const matching = state.query
+    ? preview.items.filter((item) =>
+        state.query
+          .toLowerCase()
+          .split(/\s+/)
+          .every((word) => item.marketHashName.toLowerCase().includes(word)),
+      )
+    : preview.items;
+
+  $('rows').replaceChildren(...matching.slice(0, PAGE_SIZE).map(previewRow));
+  $('result-count').textContent = `${matching.length.toLocaleString()} kinds of item in your loose inventory`;
+  $('page-label').textContent = '';
+  ($('prev') as HTMLButtonElement).disabled = true;
+  ($('next') as HTMLButtonElement).disabled = true;
 }
 
 function syncTabs(): void {
@@ -429,8 +481,23 @@ async function main(): Promise<void> {
     showAccount(saved.accountName);
   }
 
-  if (store.items.length === 0) {
-    status('Nothing indexed yet. Press "Sync" to read your inventory.');
+  if (store.items.length > 0) return;
+
+  status('Reading your public inventory...');
+  try {
+    // No sign-in for any of this: the browser already holds a Steam session,
+    // and the public inventory is readable with it. What it cannot show is
+    // what is inside a storage unit, which is what "Sync" is for.
+    const session = await readSteamSession();
+    state.preview = await readPublicInventory(session.steamId);
+    render();
+    status(
+      `Showing your public inventory. ${state.preview.storedCount.toLocaleString()} items are inside ` +
+        `${state.preview.units.length} storage units — press "Sync" to see what they are.`,
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    status(`Nothing indexed yet. Press "Sync" to read your inventory. (${message})`);
   }
 }
 

@@ -1,3 +1,4 @@
+import type { PreviewItem, PreviewUnit } from '../steam/publicinventory.js';
 import type {
   ContainerRow,
   EventRow,
@@ -172,6 +173,42 @@ export function eventRow(event: EventRow, labels: Map<string, string>): HTMLElem
     el('div', 'float', event.kind),
     el('div', 'where', new Date(event.at).toLocaleString()),
   );
+  return row;
+}
+
+/**
+ * The public inventory, shown before anyone has signed in.
+ *
+ * Marked as a preview throughout, because it genuinely is one: it has no float
+ * values, no paint seeds, and -- the part that matters -- no way to see inside
+ * a storage unit. Presenting it as the finished article would misrepresent
+ * exactly the thing this tool exists to provide.
+ */
+export function previewRow(item: PreviewItem): HTMLElement {
+  const row = el('div', 'row');
+  if (item.rarityColor) row.style.borderLeftColor = item.rarityColor;
+
+  const name = el('div', 'name');
+  name.append(
+    el('div', 'title', item.marketHashName),
+    el('div', 'sub', [item.rarityName, item.category].filter(Boolean).join(' - ')),
+  );
+
+  row.append(thumbnail(item.imageUrl), name, el('div', 'float', `x${item.count}`), el('div', 'where', 'inventory'));
+  return row;
+}
+
+export function previewUnitRow(unit: PreviewUnit): HTMLLIElement {
+  const button = el('button');
+  button.disabled = true;
+  button.append(document.createTextNode(unit.label));
+  // No stored count yet, and saying "0/818" would read as a failed read
+  // rather than as one that has not happened.
+  button.append(el('span', 'count', `${unit.containedCount}`));
+  button.title = 'Sign in to see what is inside';
+
+  const row = el('li');
+  row.append(button);
   return row;
 }
 
