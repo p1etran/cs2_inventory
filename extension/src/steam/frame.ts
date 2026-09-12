@@ -39,6 +39,10 @@ export interface MessageHeader {
   target_job_name?: string;
   routing_appid?: number;
   eresult?: number;
+  /** Set on a service reply that failed, and worth showing verbatim. */
+  error_message?: string;
+  /** 1 for the public Steam realm. Service calls are refused without it. */
+  realm?: number;
 }
 
 export interface DecodedMessage {

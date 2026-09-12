@@ -5,11 +5,11 @@ and without a server.
 
 ## Where this is up to
 
-**Milestone 2b: read one storage unit.** The extension opens a page, reads the
-Steam session already in your browser, logs on to a Steam connection manager
-over a WebSocket, reaches the CS2 game coordinator, lists the account's storage
-units, and reads the contents of the fullest one -- naming each item through
-the same code the local CLI uses.
+**Sign in by QR, then read one storage unit.** The extension opens a page,
+shows a QR code to scan in the Steam mobile app, logs on to a Steam connection
+manager over a WebSocket, reaches the CS2 game coordinator, lists the account's
+storage units, and reads the contents of the fullest one -- naming each item
+through the same code the local CLI uses.
 
 To check it, run `node dist/cli.js containers` for the same account and compare
 the item count and names. That comparison against the already-working Node path
@@ -18,7 +18,8 @@ worth keeping around during this work.
 
 Next is the full sync: a loop over every unit, with reads spaced and a unit
 that fails to read leaving its stored items untouched rather than reported as
-removed.
+removed. And a pre-sign-in view of the public inventory, so the extension shows
+something real before asking for anything.
 
 ## Build and load
 
@@ -33,23 +34,34 @@ Then in Chrome: `chrome://extensions` → **Developer mode** → **Load unpacked
 Run `npm run protos` only after a Steam protocol change; the generated files
 are committed so a normal build does not need it.
 
-## How it works, and the two things that are not obvious
+## How it works, and the things that are not obvious
 
-**No password.** `steamcommunity.com/chat/clientjstoken` takes the session
-cookies the browser already sends and returns a short-lived *web logon token*,
-plus the account name and SteamID. That token is what
-`CMsgClientLogon.web_logon_nonce` is for, and it is the supported way to log a
-web session on to the connection manager.
+**Signing in: a QR code, never a password.** The page shows a code, you scan it
+in the Steam mobile app and approve it, and Steam hands back a refresh token.
+No password and no Steam Guard code ever reaches this extension, and the
+sign-in appears in your Steam device list under its own name --
+"CS2 Inventory (browser extension)" -- so it can be recognised and revoked
+rather than masquerading as a PC.
 
-Two things follow from that, both good: no cookie is ever read, so the
-`cookies` permission is not needed; and the long-lived refresh token never
-leaves the cookie jar -- only a short-lived token reaches Steam, and nothing is
-stored.
+The exchange runs over an ordinary connection-manager socket with no account
+attached, because there is no account yet. That is what `CmClient.callService`
+is for: `Authentication.BeginAuthSessionViaQR`, then polling
+`PollAuthSessionStatus` until the token arrives. Steam rotates the challenge
+while you reach for your phone, so the code is redrawn when it does — a stale
+code fails silently, with the phone simply doing nothing.
 
-An earlier attempt read the refresh token out of the `steamRefresh_steam`
-cookie and offered it as `access_token`. Steam refused it with
-`InvalidPassword`: a token minted for a browser is not one a game client may
-log on with, and Valve is right not to let a web session escalate itself.
+**Why it cannot just borrow the browser's Steam session.** It tried, and the
+section below records the measurement. Short version: the token behind a
+browser session is issued for audience `['web']`, a game client needs
+`['web', 'client']`, and no Steam API widens one.
+
+**What is stored, and where.** One client refresh token, in
+`chrome.storage.local` — per-profile, per-extension. It is never transmitted
+anywhere except to Steam's own connection manager, and there is still no server
+to transmit it to. This is a weaker claim than the "nothing is stored at all"
+that held while the extension borrowed the browser's session, so it is stated
+plainly rather than glossed. "Forget this sign-in" deletes it, and the token is
+long-lived, so a scan is needed when it expires rather than on every visit.
 
 **Steam refuses a WebSocket that carries an `Origin` header.** Browsers attach
 one to every handshake and page JavaScript cannot remove it. Measured: from an
@@ -184,12 +196,16 @@ against the source.
 
 | Permission | Why |
 | --- | --- |
-| `steamcommunity.com` | Exchange the signed-in session for a short-lived logon token. Never a password. |
+| `steamcommunity.com` | Reading the public inventory, which needs no sign-in. |
 | `declarativeNetRequestWithHostAccess` | The one `Origin` rule above. Host-scoped: it cannot touch a request to a host the extension has no permission for. |
-| `*.steamserver.net` | The connection-manager WebSocket. |
+| `*.steamserver.net` | The connection-manager WebSocket, which carries both the QR sign-in and the game-coordinator traffic. |
 | `api.steampowered.com` | Steam's public server list. |
 | `raw.githubusercontent.com` | The public CS2 item schema, used to name items. |
-| `storage` | The index, kept locally. |
+| `storage` | The index and the saved sign-in, both local. |
+
+Adding QR sign-in needed **no new permission**: the exchange runs over the
+connection-manager socket the extension already used, and the token goes into
+the `storage` it already had.
 
 Not requested: `cookies` (nothing is read -- the browser attaches the session
 itself), `tabs` (finding an already-open tab would mean asking to read your
@@ -212,13 +228,17 @@ extension/
     app.html, app.ts  the page; holds the Steam connection
     background.ts     opens the page when the toolbar icon is clicked
     steam/
-      cm.ts           connection manager client: connect, log on, heartbeat
+      auth.ts         QR sign-in: begin a session, poll until approved
+      cm.ts           connection manager client: connect, log on, service calls
       gc.ts           game coordinator: shared object cache, storage unit reads
+      tokens.ts       the saved sign-in, and judging one before using it
       frame.ts        net message framing, Multi inflation
       protos.ts       encode/decode helpers
       servers.ts      server selection
       session.ts      exchanges the browser session for a logon token
       emsg.ts         the message ids and result codes used
+    ui/
+      qr.ts           draws the sign-in QR code as inline SVG
 ```
 
 Item naming and inventory reconciliation are not duplicated here — they come

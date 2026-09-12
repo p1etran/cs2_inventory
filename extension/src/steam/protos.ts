@@ -8,6 +8,9 @@ export {
   CMsgClientChangeStatus,
   CMsgClientGamesPlayed,
   CMsgClientHeartBeat,
+  // Steam's own hello, distinct from the game coordinator's message of the
+  // same name -- the generator renames this one so both can coexist.
+  CMsgClientHelloSteam,
   CMsgClientKickPlayingSession,
   CMsgClientPlayingSessionState,
   CMsgClientLoggedOff,
@@ -27,6 +30,11 @@ export {
   CMsgSOMultipleObjects,
   CMsgSOSingleObject,
   CSOEconItem,
+  // QR sign-in, over a connection with no account attached
+  CAuthentication_BeginAuthSessionViaQR_Request,
+  CAuthentication_BeginAuthSessionViaQR_Response,
+  CAuthentication_PollAuthSessionStatus_Request,
+  CAuthentication_PollAuthSessionStatus_Response,
 } from '../generated/protos.js';
 
 /**

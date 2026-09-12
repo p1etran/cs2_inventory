@@ -6,10 +6,12 @@ import {
   JOBID_NONE,
   splitMultiPayload,
   type DecodedMessage,
+  type MessageHeader,
 } from './frame.js';
 import {
   CMsgClientAccountInfo,
   CMsgClientHeartBeat,
+  CMsgClientHelloSteam,
   CMsgClientLoggedOff,
   CMsgClientLogon,
   CMsgClientLogonResponse,
@@ -49,6 +51,7 @@ export const CLIENT_OS_WINDOWS = 16;
 const ORIGIN_RULE_ID = 1;
 const CONNECT_TIMEOUT_MS = 10_000;
 const LOGON_TIMEOUT_MS = 20_000;
+const SERVICE_TIMEOUT_MS = 15_000;
 
 /** What Steam says about our claim on the account's one game slot. */
 export interface PlayingSessionState {
@@ -67,6 +70,25 @@ export interface LogonResult {
 }
 
 export type MessageHandler = (message: DecodedMessage) => void;
+
+interface ServiceResponse {
+  eresult?: number;
+  errorMessage?: string;
+  body: Uint8Array;
+}
+
+/**
+ * A job id Steam will echo back. Positive, because the field is signed where
+ * Steam reads it and a negative value comes back as something else.
+ */
+function randomJobId(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  bytes[0] = (bytes[0] ?? 0) & 0x7f;
+  let value = 0n;
+  for (const byte of bytes) value = (value << 8n) | BigInt(byte);
+  return value.toString();
+}
 
 export class CmError extends Error {
   constructor(message: string) {
@@ -140,6 +162,8 @@ export class CmClient {
   private steamId = '0';
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private readonly handlers = new Map<number, MessageHandler[]>();
+  /** Pending service calls, keyed by the job id we sent. */
+  private readonly jobs = new Map<string, (result: ServiceResponse) => void>();
   private readonly log: (message: string) => void;
   private readonly trace: boolean;
   private readonly identity: { clientOsType: number; uiMode?: number };
@@ -244,13 +268,7 @@ export class CmClient {
    * the CM uses it to decide which GC the message belongs to.
    */
   send(emsg: number, body: Uint8Array = new Uint8Array(0), routingAppid?: number): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      throw new CmError('Not connected to Steam');
-    }
-    // Outbound as well as inbound. Tracing only what arrives left "are the
-    // hellos even being sent" unanswerable across two runs.
-    if (this.trace) this.log(`-> ${emsgName(emsg)}`);
-    const message = encodeNetMessage(
+    this.transmit(
       emsg,
       {
         steamid: this.steamId,
@@ -261,7 +279,80 @@ export class CmClient {
       },
       body,
     );
-    this.socket.send(message as unknown as ArrayBufferView);
+  }
+
+  /** The one place a frame reaches the socket, so the trace cannot miss one. */
+  private transmit(emsg: number, header: MessageHeader, body: Uint8Array): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      throw new CmError('Not connected to Steam');
+    }
+    // Outbound as well as inbound. Tracing only what arrives left "are the
+    // hellos even being sent" unanswerable across two runs.
+    if (this.trace) this.log(`-> ${emsgName(emsg)}`);
+    this.socket.send(encodeNetMessage(emsg, header, body) as unknown as ArrayBufferView);
+  }
+
+  /**
+   * Opens the connection for service calls that need no account.
+   *
+   * Steam's own hello, not the game coordinator's -- two different messages
+   * that happen to share a name, which is why the generated one is
+   * `CMsgClientHelloSteam`.
+   */
+  sayHello(): void {
+    this.transmit(
+      EMsg.ClientHello,
+      { steamid: '0', client_sessionid: 0 },
+      encode(CMsgClientHelloSteam, { protocol_version: PROTOCOL_VERSION }),
+    );
+  }
+
+  /**
+   * Calls a Steam service method without being logged on.
+   *
+   * This is how a QR sign-in starts: there is no account yet, so the call
+   * cannot be authenticated. The reply is matched by job id rather than by
+   * message type, because every service response arrives as the same EMsg.
+   */
+  async callService(
+    target: string,
+    body: Uint8Array,
+    timeoutMs = SERVICE_TIMEOUT_MS,
+  ): Promise<Uint8Array> {
+    const jobId = randomJobId();
+
+    const response = new Promise<ServiceResponse>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.jobs.delete(jobId);
+        reject(new CmError(`${target} timed out`));
+      }, timeoutMs);
+
+      this.jobs.set(jobId, (result) => {
+        clearTimeout(timer);
+        this.jobs.delete(jobId);
+        resolve(result);
+      });
+    });
+
+    this.transmit(
+      EMsg.ServiceMethodCallFromClientNonAuthed,
+      {
+        steamid: '0',
+        client_sessionid: 0,
+        jobid_source: jobId,
+        target_job_name: target,
+        realm: 1,
+      },
+      body,
+    );
+
+    const result = await response;
+    if (result.eresult !== undefined && result.eresult !== EResult.OK) {
+      throw new CmError(
+        `${target}: ${result.errorMessage || describeEResult(result.eresult)}`,
+      );
+    }
+    return result.body;
   }
 
   /** Dispatches one frame, unwrapping Multi containers first. */
@@ -289,6 +380,19 @@ export class CmClient {
 
     if (message.emsg === EMsg.Multi) {
       await this.expandMulti(message);
+      return;
+    }
+
+    // A service reply is matched by job id, since every one of them arrives
+    // as the same message type.
+    const job = message.header.jobid_target && this.jobs.get(message.header.jobid_target);
+    if (job) {
+      if (this.trace) this.log(`<- ${emsgName(message.emsg)} (reply)`);
+      job({
+        eresult: message.header.eresult,
+        errorMessage: message.header.error_message,
+        body: message.body,
+      });
       return;
     }
 
@@ -354,6 +458,37 @@ export class CmClient {
   }
 
   /**
+   * Logs on with a client refresh token, from a QR sign-in.
+   *
+   * `access_token` carries the refresh token, and `account_name` must be left
+   * unset -- Steam refuses a logon that sends both. The SteamID comes from the
+   * token's own `sub` claim, and has to be in the header before a session
+   * exists, because that is how the CM knows whose logon this is.
+   */
+  async logOnWithToken(refreshToken: string, steamId: string): Promise<LogonResult> {
+    this.steamId = steamId;
+    this.sessionId = 0;
+
+    const result = this.awaitLogonResponse();
+
+    this.send(
+      EMsg.ClientLogon,
+      encode(CMsgClientLogon, {
+        protocol_version: PROTOCOL_VERSION,
+        access_token: refreshToken,
+        client_os_type: this.identity.clientOsType,
+        ...(this.identity.uiMode === undefined ? {} : { ui_mode: this.identity.uiMode }),
+        chat_mode: 2,
+        should_remember_password: true,
+        supports_rate_limit_response: true,
+      }),
+    );
+    this.log('Logon sent with the saved sign-in');
+
+    return result;
+  }
+
+  /**
    * Logs on with the refresh token from the browser's Steam session.
    *
    * The header must carry the account's SteamID before a session exists,
@@ -363,7 +498,34 @@ export class CmClient {
     this.steamId = session.steamId;
     this.sessionId = 0;
 
-    const result = new Promise<LogonResult>((resolve, reject) => {
+    const result = this.awaitLogonResponse();
+
+    // A web logon token is a different shape of logon from a password or a
+    // refresh token: Steam expects the web OS type and UI mode, and none of
+    // the fields a desktop client would send. steam-user strips exactly these
+    // for this path, and sending them anyway is a way to be refused.
+    this.send(
+      EMsg.ClientLogon,
+      encode(CMsgClientLogon, {
+        protocol_version: PROTOCOL_VERSION,
+        web_logon_nonce: session.webLogonToken,
+        account_name: session.accountName,
+        client_os_type: this.identity.clientOsType,
+        ...(this.identity.uiMode === undefined ? {} : { ui_mode: this.identity.uiMode }),
+        chat_mode: 2,
+      }),
+    );
+    this.log(
+      `Logon sent as OS type ${this.identity.clientOsType}` +
+        `${this.identity.uiMode === undefined ? ' with no UI mode' : `, UI mode ${this.identity.uiMode}`}`,
+    );
+
+    return result;
+  }
+
+  /** Both logon paths get the same answer, so they wait for it the same way. */
+  private awaitLogonResponse(): Promise<LogonResult> {
+    return new Promise<LogonResult>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new CmError('Steam accepted the connection but never answered the logon')),
         LOGON_TIMEOUT_MS,
@@ -401,28 +563,6 @@ export class CmClient {
         reject(new CmError(`Steam logged us off: ${describeEResult(body.eresult ?? 0)}`));
       });
     });
-
-    // A web logon token is a different shape of logon from a password or a
-    // refresh token: Steam expects the web OS type and UI mode, and none of
-    // the fields a desktop client would send. steam-user strips exactly these
-    // for this path, and sending them anyway is a way to be refused.
-    this.send(
-      EMsg.ClientLogon,
-      encode(CMsgClientLogon, {
-        protocol_version: PROTOCOL_VERSION,
-        web_logon_nonce: session.webLogonToken,
-        account_name: session.accountName,
-        client_os_type: this.identity.clientOsType,
-        ...(this.identity.uiMode === undefined ? {} : { ui_mode: this.identity.uiMode }),
-        chat_mode: 2,
-      }),
-    );
-    this.log(
-      `Logon sent as OS type ${this.identity.clientOsType}` +
-        `${this.identity.uiMode === undefined ? ' with no UI mode' : `, UI mode ${this.identity.uiMode}`}`,
-    );
-
-    return result;
   }
 
   private startHeartbeat(seconds: number): void {

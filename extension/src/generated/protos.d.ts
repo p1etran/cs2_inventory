@@ -9,12 +9,17 @@ export interface StaticMessageType {
   toObject(message: unknown, options?: Record<string, unknown>): Record<string, unknown>;
 }
 
+export const CAuthentication_BeginAuthSessionViaQR_Request: StaticMessageType;
+export const CAuthentication_BeginAuthSessionViaQR_Response: StaticMessageType;
+export const CAuthentication_PollAuthSessionStatus_Request: StaticMessageType;
+export const CAuthentication_PollAuthSessionStatus_Response: StaticMessageType;
 export const CMsgCasketItem: StaticMessageType;
 export const CMsgClientAccountInfo: StaticMessageType;
 export const CMsgClientChangeStatus: StaticMessageType;
 export const CMsgClientGamesPlayed: StaticMessageType;
 export const CMsgClientHeartBeat: StaticMessageType;
 export const CMsgClientHello: StaticMessageType;
+export const CMsgClientHelloSteam: StaticMessageType;
 export const CMsgClientKickPlayingSession: StaticMessageType;
 export const CMsgClientLoggedOff: StaticMessageType;
 export const CMsgClientLogon: StaticMessageType;

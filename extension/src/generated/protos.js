@@ -7570,4 +7570,1277 @@ export const CMsgGCCStrike15_v2_ClientLogonFatalError = $root.CMsgGCCStrike15_v2
     return CMsgGCCStrike15_v2_ClientLogonFatalError;
 })();
 
+export const CMsgClientHelloSteam = $root.CMsgClientHelloSteam = (() => {
+
+    function CMsgClientHelloSteam(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgClientHelloSteam.prototype.protocol_version = 0;
+
+    CMsgClientHelloSteam.create = function create(properties) {
+        return new CMsgClientHelloSteam(properties);
+    };
+
+    CMsgClientHelloSteam.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.protocol_version != null && Object.hasOwnProperty.call(message, "protocol_version"))
+            writer.uint32(8).uint32(message.protocol_version);
+        return writer;
+    };
+
+    CMsgClientHelloSteam.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgClientHelloSteam();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.protocol_version = reader.uint32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgClientHelloSteam.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgClientHelloSteam)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgClientHelloSteam: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgClientHelloSteam();
+        if (object.protocol_version != null)
+            message.protocol_version = object.protocol_version >>> 0;
+        return message;
+    };
+
+    CMsgClientHelloSteam.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults)
+            object.protocol_version = 0;
+        if (message.protocol_version != null && Object.hasOwnProperty.call(message, "protocol_version"))
+            object.protocol_version = message.protocol_version;
+        return object;
+    };
+
+    CMsgClientHelloSteam.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgClientHelloSteam.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgClientHelloSteam";
+    };
+
+    return CMsgClientHelloSteam;
+})();
+
+export const CAuthentication_BeginAuthSessionViaQR_Request = $root.CAuthentication_BeginAuthSessionViaQR_Request = (() => {
+
+    function CAuthentication_BeginAuthSessionViaQR_Request(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CAuthentication_BeginAuthSessionViaQR_Request.prototype.device_friendly_name = "";
+    CAuthentication_BeginAuthSessionViaQR_Request.prototype.platform_type = 0;
+    CAuthentication_BeginAuthSessionViaQR_Request.prototype.device_details = null;
+    CAuthentication_BeginAuthSessionViaQR_Request.prototype.website_id = "Unknown";
+
+    CAuthentication_BeginAuthSessionViaQR_Request.create = function create(properties) {
+        return new CAuthentication_BeginAuthSessionViaQR_Request(properties);
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Request.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.device_friendly_name != null && Object.hasOwnProperty.call(message, "device_friendly_name"))
+            writer.uint32(10).string(message.device_friendly_name);
+        if (message.platform_type != null && Object.hasOwnProperty.call(message, "platform_type"))
+            writer.uint32(16).int32(message.platform_type);
+        if (message.device_details != null && Object.hasOwnProperty.call(message, "device_details"))
+            $root.CAuthentication_DeviceDetails.encode(message.device_details, writer.uint32(26).fork(), q + 1).ldelim();
+        if (message.website_id != null && Object.hasOwnProperty.call(message, "website_id"))
+            writer.uint32(34).string(message.website_id);
+        return writer;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Request.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CAuthentication_BeginAuthSessionViaQR_Request();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.device_friendly_name = reader.string();
+                    break;
+                }
+            case 2: {
+                    message.platform_type = reader.int32();
+                    break;
+                }
+            case 3: {
+                    message.device_details = $root.CAuthentication_DeviceDetails.decode(reader, reader.uint32(), undefined, long + 1);
+                    break;
+                }
+            case 4: {
+                    message.website_id = reader.string();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Request.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CAuthentication_BeginAuthSessionViaQR_Request)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CAuthentication_BeginAuthSessionViaQR_Request: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CAuthentication_BeginAuthSessionViaQR_Request();
+        if (object.device_friendly_name != null)
+            message.device_friendly_name = String(object.device_friendly_name);
+        switch (object.platform_type) {
+        default:
+            if (typeof object.platform_type === "number") {
+                message.platform_type = object.platform_type;
+                break;
+            }
+            break;
+        case "k_EAuthTokenPlatformType_Unknown":
+        case 0:
+            message.platform_type = 0;
+            break;
+        case "k_EAuthTokenPlatformType_SteamClient":
+        case 1:
+            message.platform_type = 1;
+            break;
+        case "k_EAuthTokenPlatformType_WebBrowser":
+        case 2:
+            message.platform_type = 2;
+            break;
+        case "k_EAuthTokenPlatformType_MobileApp":
+        case 3:
+            message.platform_type = 3;
+            break;
+        }
+        if (object.device_details != null) {
+            if (!$util.isObject(object.device_details))
+                throw TypeError(".CAuthentication_BeginAuthSessionViaQR_Request.device_details: object expected");
+            message.device_details = $root.CAuthentication_DeviceDetails.fromObject(object.device_details, long + 1);
+        }
+        if (object.website_id != null)
+            message.website_id = String(object.website_id);
+        return message;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Request.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.device_friendly_name = "";
+            object.platform_type = options.enums === String ? "k_EAuthTokenPlatformType_Unknown" : 0;
+            object.device_details = null;
+            object.website_id = "Unknown";
+        }
+        if (message.device_friendly_name != null && Object.hasOwnProperty.call(message, "device_friendly_name"))
+            object.device_friendly_name = message.device_friendly_name;
+        if (message.platform_type != null && Object.hasOwnProperty.call(message, "platform_type"))
+            object.platform_type = options.enums === String ? $root.EAuthTokenPlatformType[message.platform_type] === undefined ? message.platform_type : $root.EAuthTokenPlatformType[message.platform_type] : message.platform_type;
+        if (message.device_details != null && Object.hasOwnProperty.call(message, "device_details"))
+            object.device_details = $root.CAuthentication_DeviceDetails.toObject(message.device_details, options, q + 1);
+        if (message.website_id != null && Object.hasOwnProperty.call(message, "website_id"))
+            object.website_id = message.website_id;
+        return object;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Request.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Request.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CAuthentication_BeginAuthSessionViaQR_Request";
+    };
+
+    return CAuthentication_BeginAuthSessionViaQR_Request;
+})();
+
+export const EAuthTokenPlatformType = $root.EAuthTokenPlatformType = (() => {
+    const valuesById = {}, values = Object.create(valuesById);
+    values[valuesById[0] = "k_EAuthTokenPlatformType_Unknown"] = 0;
+    values[valuesById[1] = "k_EAuthTokenPlatformType_SteamClient"] = 1;
+    values[valuesById[2] = "k_EAuthTokenPlatformType_WebBrowser"] = 2;
+    values[valuesById[3] = "k_EAuthTokenPlatformType_MobileApp"] = 3;
+    return values;
+})();
+
+export const CAuthentication_DeviceDetails = $root.CAuthentication_DeviceDetails = (() => {
+
+    function CAuthentication_DeviceDetails(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CAuthentication_DeviceDetails.prototype.device_friendly_name = "";
+    CAuthentication_DeviceDetails.prototype.platform_type = 0;
+    CAuthentication_DeviceDetails.prototype.os_type = 0;
+    CAuthentication_DeviceDetails.prototype.gaming_device_type = 0;
+    CAuthentication_DeviceDetails.prototype.client_count = 0;
+    CAuthentication_DeviceDetails.prototype.machine_id = $util.newBuffer([]);
+
+    CAuthentication_DeviceDetails.create = function create(properties) {
+        return new CAuthentication_DeviceDetails(properties);
+    };
+
+    CAuthentication_DeviceDetails.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.device_friendly_name != null && Object.hasOwnProperty.call(message, "device_friendly_name"))
+            writer.uint32(10).string(message.device_friendly_name);
+        if (message.platform_type != null && Object.hasOwnProperty.call(message, "platform_type"))
+            writer.uint32(16).int32(message.platform_type);
+        if (message.os_type != null && Object.hasOwnProperty.call(message, "os_type"))
+            writer.uint32(24).int32(message.os_type);
+        if (message.gaming_device_type != null && Object.hasOwnProperty.call(message, "gaming_device_type"))
+            writer.uint32(32).uint32(message.gaming_device_type);
+        if (message.client_count != null && Object.hasOwnProperty.call(message, "client_count"))
+            writer.uint32(40).uint32(message.client_count);
+        if (message.machine_id != null && Object.hasOwnProperty.call(message, "machine_id"))
+            writer.uint32(50).bytes(message.machine_id);
+        return writer;
+    };
+
+    CAuthentication_DeviceDetails.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CAuthentication_DeviceDetails();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.device_friendly_name = reader.string();
+                    break;
+                }
+            case 2: {
+                    message.platform_type = reader.int32();
+                    break;
+                }
+            case 3: {
+                    message.os_type = reader.int32();
+                    break;
+                }
+            case 4: {
+                    message.gaming_device_type = reader.uint32();
+                    break;
+                }
+            case 5: {
+                    message.client_count = reader.uint32();
+                    break;
+                }
+            case 6: {
+                    message.machine_id = reader.bytes();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CAuthentication_DeviceDetails.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CAuthentication_DeviceDetails)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CAuthentication_DeviceDetails: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CAuthentication_DeviceDetails();
+        if (object.device_friendly_name != null)
+            message.device_friendly_name = String(object.device_friendly_name);
+        switch (object.platform_type) {
+        default:
+            if (typeof object.platform_type === "number") {
+                message.platform_type = object.platform_type;
+                break;
+            }
+            break;
+        case "k_EAuthTokenPlatformType_Unknown":
+        case 0:
+            message.platform_type = 0;
+            break;
+        case "k_EAuthTokenPlatformType_SteamClient":
+        case 1:
+            message.platform_type = 1;
+            break;
+        case "k_EAuthTokenPlatformType_WebBrowser":
+        case 2:
+            message.platform_type = 2;
+            break;
+        case "k_EAuthTokenPlatformType_MobileApp":
+        case 3:
+            message.platform_type = 3;
+            break;
+        }
+        if (object.os_type != null)
+            message.os_type = object.os_type | 0;
+        if (object.gaming_device_type != null)
+            message.gaming_device_type = object.gaming_device_type >>> 0;
+        if (object.client_count != null)
+            message.client_count = object.client_count >>> 0;
+        if (object.machine_id != null)
+            if (typeof object.machine_id === "string")
+                $util.base64.decode(object.machine_id, message.machine_id = $util.newBuffer($util.base64.length(object.machine_id)), 0);
+            else if (object.machine_id.length >= 0)
+                message.machine_id = object.machine_id;
+        return message;
+    };
+
+    CAuthentication_DeviceDetails.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.device_friendly_name = "";
+            object.platform_type = options.enums === String ? "k_EAuthTokenPlatformType_Unknown" : 0;
+            object.os_type = 0;
+            object.gaming_device_type = 0;
+            object.client_count = 0;
+            if (options.bytes === String)
+                object.machine_id = "";
+            else {
+                object.machine_id = [];
+                if (options.bytes !== Array)
+                    object.machine_id = $util.newBuffer(object.machine_id);
+            }
+        }
+        if (message.device_friendly_name != null && Object.hasOwnProperty.call(message, "device_friendly_name"))
+            object.device_friendly_name = message.device_friendly_name;
+        if (message.platform_type != null && Object.hasOwnProperty.call(message, "platform_type"))
+            object.platform_type = options.enums === String ? $root.EAuthTokenPlatformType[message.platform_type] === undefined ? message.platform_type : $root.EAuthTokenPlatformType[message.platform_type] : message.platform_type;
+        if (message.os_type != null && Object.hasOwnProperty.call(message, "os_type"))
+            object.os_type = message.os_type;
+        if (message.gaming_device_type != null && Object.hasOwnProperty.call(message, "gaming_device_type"))
+            object.gaming_device_type = message.gaming_device_type;
+        if (message.client_count != null && Object.hasOwnProperty.call(message, "client_count"))
+            object.client_count = message.client_count;
+        if (message.machine_id != null && Object.hasOwnProperty.call(message, "machine_id"))
+            object.machine_id = options.bytes === String ? $util.base64.encode(message.machine_id, 0, message.machine_id.length) : options.bytes === Array ? Array.prototype.slice.call(message.machine_id) : message.machine_id;
+        return object;
+    };
+
+    CAuthentication_DeviceDetails.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CAuthentication_DeviceDetails.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CAuthentication_DeviceDetails";
+    };
+
+    return CAuthentication_DeviceDetails;
+})();
+
+export const CAuthentication_BeginAuthSessionViaQR_Response = $root.CAuthentication_BeginAuthSessionViaQR_Response = (() => {
+
+    function CAuthentication_BeginAuthSessionViaQR_Response(properties) {
+        this.allowed_confirmations = [];
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.client_id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.challenge_url = "";
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.request_id = $util.newBuffer([]);
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.interval = 0;
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.allowed_confirmations = $util.emptyArray;
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.version = 0;
+
+    CAuthentication_BeginAuthSessionViaQR_Response.create = function create(properties) {
+        return new CAuthentication_BeginAuthSessionViaQR_Response(properties);
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Response.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.client_id != null && Object.hasOwnProperty.call(message, "client_id"))
+            writer.uint32(8).uint64(message.client_id);
+        if (message.challenge_url != null && Object.hasOwnProperty.call(message, "challenge_url"))
+            writer.uint32(18).string(message.challenge_url);
+        if (message.request_id != null && Object.hasOwnProperty.call(message, "request_id"))
+            writer.uint32(26).bytes(message.request_id);
+        if (message.interval != null && Object.hasOwnProperty.call(message, "interval"))
+            writer.uint32(37).float(message.interval);
+        if (message.allowed_confirmations != null && message.allowed_confirmations.length)
+            for (let i = 0; i < message.allowed_confirmations.length; ++i)
+                $root.CAuthentication_AllowedConfirmation.encode(message.allowed_confirmations[i], writer.uint32(42).fork(), q + 1).ldelim();
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            writer.uint32(48).int32(message.version);
+        return writer;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Response.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CAuthentication_BeginAuthSessionViaQR_Response();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.client_id = reader.uint64();
+                    break;
+                }
+            case 2: {
+                    message.challenge_url = reader.string();
+                    break;
+                }
+            case 3: {
+                    message.request_id = reader.bytes();
+                    break;
+                }
+            case 4: {
+                    message.interval = reader.float();
+                    break;
+                }
+            case 5: {
+                    if (!(message.allowed_confirmations && message.allowed_confirmations.length))
+                        message.allowed_confirmations = [];
+                    message.allowed_confirmations.push($root.CAuthentication_AllowedConfirmation.decode(reader, reader.uint32(), undefined, long + 1));
+                    break;
+                }
+            case 6: {
+                    message.version = reader.int32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Response.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CAuthentication_BeginAuthSessionViaQR_Response)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CAuthentication_BeginAuthSessionViaQR_Response: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CAuthentication_BeginAuthSessionViaQR_Response();
+        if (object.client_id != null)
+            if ($util.Long)
+                message.client_id = $util.Long.fromValue(object.client_id, true);
+            else if (typeof object.client_id === "string")
+                message.client_id = parseInt(object.client_id, 10);
+            else if (typeof object.client_id === "number")
+                message.client_id = object.client_id;
+            else if (typeof object.client_id === "object")
+                message.client_id = new $util.LongBits(object.client_id.low >>> 0, object.client_id.high >>> 0).toNumber(true);
+        if (object.challenge_url != null)
+            message.challenge_url = String(object.challenge_url);
+        if (object.request_id != null)
+            if (typeof object.request_id === "string")
+                $util.base64.decode(object.request_id, message.request_id = $util.newBuffer($util.base64.length(object.request_id)), 0);
+            else if (object.request_id.length >= 0)
+                message.request_id = object.request_id;
+        if (object.interval != null)
+            message.interval = Number(object.interval);
+        if (object.allowed_confirmations) {
+            if (!Array.isArray(object.allowed_confirmations))
+                throw TypeError(".CAuthentication_BeginAuthSessionViaQR_Response.allowed_confirmations: array expected");
+            message.allowed_confirmations = [];
+            for (let i = 0; i < object.allowed_confirmations.length; ++i) {
+                if (!$util.isObject(object.allowed_confirmations[i]))
+                    throw TypeError(".CAuthentication_BeginAuthSessionViaQR_Response.allowed_confirmations: object expected");
+                message.allowed_confirmations[i] = $root.CAuthentication_AllowedConfirmation.fromObject(object.allowed_confirmations[i], long + 1);
+            }
+        }
+        if (object.version != null)
+            message.version = object.version | 0;
+        return message;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Response.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.arrays || options.defaults)
+            object.allowed_confirmations = [];
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.client_id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.client_id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.challenge_url = "";
+            if (options.bytes === String)
+                object.request_id = "";
+            else {
+                object.request_id = [];
+                if (options.bytes !== Array)
+                    object.request_id = $util.newBuffer(object.request_id);
+            }
+            object.interval = 0;
+            object.version = 0;
+        }
+        if (message.client_id != null && Object.hasOwnProperty.call(message, "client_id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.client_id = typeof message.client_id === "number" ? BigInt(message.client_id) : $util.Long.fromBits(message.client_id.low >>> 0, message.client_id.high >>> 0, true).toBigInt();
+            else if (typeof message.client_id === "number")
+                object.client_id = options.longs === String ? String(message.client_id) : message.client_id;
+            else
+                object.client_id = options.longs === String ? $util.Long.prototype.toString.call(message.client_id) : options.longs === Number ? new $util.LongBits(message.client_id.low >>> 0, message.client_id.high >>> 0).toNumber(true) : message.client_id;
+        if (message.challenge_url != null && Object.hasOwnProperty.call(message, "challenge_url"))
+            object.challenge_url = message.challenge_url;
+        if (message.request_id != null && Object.hasOwnProperty.call(message, "request_id"))
+            object.request_id = options.bytes === String ? $util.base64.encode(message.request_id, 0, message.request_id.length) : options.bytes === Array ? Array.prototype.slice.call(message.request_id) : message.request_id;
+        if (message.interval != null && Object.hasOwnProperty.call(message, "interval"))
+            object.interval = options.json && !isFinite(message.interval) ? String(message.interval) : message.interval;
+        if (message.allowed_confirmations && message.allowed_confirmations.length) {
+            object.allowed_confirmations = [];
+            for (let j = 0; j < message.allowed_confirmations.length; ++j)
+                object.allowed_confirmations[j] = $root.CAuthentication_AllowedConfirmation.toObject(message.allowed_confirmations[j], options, q + 1);
+        }
+        if (message.version != null && Object.hasOwnProperty.call(message, "version"))
+            object.version = message.version;
+        return object;
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Response.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CAuthentication_BeginAuthSessionViaQR_Response.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CAuthentication_BeginAuthSessionViaQR_Response";
+    };
+
+    return CAuthentication_BeginAuthSessionViaQR_Response;
+})();
+
+export const CAuthentication_AllowedConfirmation = $root.CAuthentication_AllowedConfirmation = (() => {
+
+    function CAuthentication_AllowedConfirmation(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CAuthentication_AllowedConfirmation.prototype.confirmation_type = 0;
+    CAuthentication_AllowedConfirmation.prototype.associated_message = "";
+
+    CAuthentication_AllowedConfirmation.create = function create(properties) {
+        return new CAuthentication_AllowedConfirmation(properties);
+    };
+
+    CAuthentication_AllowedConfirmation.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.confirmation_type != null && Object.hasOwnProperty.call(message, "confirmation_type"))
+            writer.uint32(8).int32(message.confirmation_type);
+        if (message.associated_message != null && Object.hasOwnProperty.call(message, "associated_message"))
+            writer.uint32(18).string(message.associated_message);
+        return writer;
+    };
+
+    CAuthentication_AllowedConfirmation.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CAuthentication_AllowedConfirmation();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.confirmation_type = reader.int32();
+                    break;
+                }
+            case 2: {
+                    message.associated_message = reader.string();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CAuthentication_AllowedConfirmation.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CAuthentication_AllowedConfirmation)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CAuthentication_AllowedConfirmation: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CAuthentication_AllowedConfirmation();
+        switch (object.confirmation_type) {
+        default:
+            if (typeof object.confirmation_type === "number") {
+                message.confirmation_type = object.confirmation_type;
+                break;
+            }
+            break;
+        case "k_EAuthSessionGuardType_Unknown":
+        case 0:
+            message.confirmation_type = 0;
+            break;
+        case "k_EAuthSessionGuardType_None":
+        case 1:
+            message.confirmation_type = 1;
+            break;
+        case "k_EAuthSessionGuardType_EmailCode":
+        case 2:
+            message.confirmation_type = 2;
+            break;
+        case "k_EAuthSessionGuardType_DeviceCode":
+        case 3:
+            message.confirmation_type = 3;
+            break;
+        case "k_EAuthSessionGuardType_DeviceConfirmation":
+        case 4:
+            message.confirmation_type = 4;
+            break;
+        case "k_EAuthSessionGuardType_EmailConfirmation":
+        case 5:
+            message.confirmation_type = 5;
+            break;
+        case "k_EAuthSessionGuardType_MachineToken":
+        case 6:
+            message.confirmation_type = 6;
+            break;
+        case "k_EAuthSessionGuardType_LegacyMachineAuth":
+        case 7:
+            message.confirmation_type = 7;
+            break;
+        }
+        if (object.associated_message != null)
+            message.associated_message = String(object.associated_message);
+        return message;
+    };
+
+    CAuthentication_AllowedConfirmation.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.confirmation_type = options.enums === String ? "k_EAuthSessionGuardType_Unknown" : 0;
+            object.associated_message = "";
+        }
+        if (message.confirmation_type != null && Object.hasOwnProperty.call(message, "confirmation_type"))
+            object.confirmation_type = options.enums === String ? $root.EAuthSessionGuardType[message.confirmation_type] === undefined ? message.confirmation_type : $root.EAuthSessionGuardType[message.confirmation_type] : message.confirmation_type;
+        if (message.associated_message != null && Object.hasOwnProperty.call(message, "associated_message"))
+            object.associated_message = message.associated_message;
+        return object;
+    };
+
+    CAuthentication_AllowedConfirmation.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CAuthentication_AllowedConfirmation.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CAuthentication_AllowedConfirmation";
+    };
+
+    return CAuthentication_AllowedConfirmation;
+})();
+
+export const EAuthSessionGuardType = $root.EAuthSessionGuardType = (() => {
+    const valuesById = {}, values = Object.create(valuesById);
+    values[valuesById[0] = "k_EAuthSessionGuardType_Unknown"] = 0;
+    values[valuesById[1] = "k_EAuthSessionGuardType_None"] = 1;
+    values[valuesById[2] = "k_EAuthSessionGuardType_EmailCode"] = 2;
+    values[valuesById[3] = "k_EAuthSessionGuardType_DeviceCode"] = 3;
+    values[valuesById[4] = "k_EAuthSessionGuardType_DeviceConfirmation"] = 4;
+    values[valuesById[5] = "k_EAuthSessionGuardType_EmailConfirmation"] = 5;
+    values[valuesById[6] = "k_EAuthSessionGuardType_MachineToken"] = 6;
+    values[valuesById[7] = "k_EAuthSessionGuardType_LegacyMachineAuth"] = 7;
+    return values;
+})();
+
+export const CAuthentication_PollAuthSessionStatus_Request = $root.CAuthentication_PollAuthSessionStatus_Request = (() => {
+
+    function CAuthentication_PollAuthSessionStatus_Request(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CAuthentication_PollAuthSessionStatus_Request.prototype.client_id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CAuthentication_PollAuthSessionStatus_Request.prototype.request_id = $util.newBuffer([]);
+    CAuthentication_PollAuthSessionStatus_Request.prototype.token_to_revoke = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+
+    CAuthentication_PollAuthSessionStatus_Request.create = function create(properties) {
+        return new CAuthentication_PollAuthSessionStatus_Request(properties);
+    };
+
+    CAuthentication_PollAuthSessionStatus_Request.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.client_id != null && Object.hasOwnProperty.call(message, "client_id"))
+            writer.uint32(8).uint64(message.client_id);
+        if (message.request_id != null && Object.hasOwnProperty.call(message, "request_id"))
+            writer.uint32(18).bytes(message.request_id);
+        if (message.token_to_revoke != null && Object.hasOwnProperty.call(message, "token_to_revoke"))
+            writer.uint32(25).fixed64(message.token_to_revoke);
+        return writer;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Request.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CAuthentication_PollAuthSessionStatus_Request();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.client_id = reader.uint64();
+                    break;
+                }
+            case 2: {
+                    message.request_id = reader.bytes();
+                    break;
+                }
+            case 3: {
+                    message.token_to_revoke = reader.fixed64();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Request.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CAuthentication_PollAuthSessionStatus_Request)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CAuthentication_PollAuthSessionStatus_Request: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CAuthentication_PollAuthSessionStatus_Request();
+        if (object.client_id != null)
+            if ($util.Long)
+                message.client_id = $util.Long.fromValue(object.client_id, true);
+            else if (typeof object.client_id === "string")
+                message.client_id = parseInt(object.client_id, 10);
+            else if (typeof object.client_id === "number")
+                message.client_id = object.client_id;
+            else if (typeof object.client_id === "object")
+                message.client_id = new $util.LongBits(object.client_id.low >>> 0, object.client_id.high >>> 0).toNumber(true);
+        if (object.request_id != null)
+            if (typeof object.request_id === "string")
+                $util.base64.decode(object.request_id, message.request_id = $util.newBuffer($util.base64.length(object.request_id)), 0);
+            else if (object.request_id.length >= 0)
+                message.request_id = object.request_id;
+        if (object.token_to_revoke != null)
+            if ($util.Long)
+                message.token_to_revoke = $util.Long.fromValue(object.token_to_revoke, true);
+            else if (typeof object.token_to_revoke === "string")
+                message.token_to_revoke = parseInt(object.token_to_revoke, 10);
+            else if (typeof object.token_to_revoke === "number")
+                message.token_to_revoke = object.token_to_revoke;
+            else if (typeof object.token_to_revoke === "object")
+                message.token_to_revoke = new $util.LongBits(object.token_to_revoke.low >>> 0, object.token_to_revoke.high >>> 0).toNumber(true);
+        return message;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Request.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.client_id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.client_id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            if (options.bytes === String)
+                object.request_id = "";
+            else {
+                object.request_id = [];
+                if (options.bytes !== Array)
+                    object.request_id = $util.newBuffer(object.request_id);
+            }
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.token_to_revoke = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.token_to_revoke = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+        }
+        if (message.client_id != null && Object.hasOwnProperty.call(message, "client_id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.client_id = typeof message.client_id === "number" ? BigInt(message.client_id) : $util.Long.fromBits(message.client_id.low >>> 0, message.client_id.high >>> 0, true).toBigInt();
+            else if (typeof message.client_id === "number")
+                object.client_id = options.longs === String ? String(message.client_id) : message.client_id;
+            else
+                object.client_id = options.longs === String ? $util.Long.prototype.toString.call(message.client_id) : options.longs === Number ? new $util.LongBits(message.client_id.low >>> 0, message.client_id.high >>> 0).toNumber(true) : message.client_id;
+        if (message.request_id != null && Object.hasOwnProperty.call(message, "request_id"))
+            object.request_id = options.bytes === String ? $util.base64.encode(message.request_id, 0, message.request_id.length) : options.bytes === Array ? Array.prototype.slice.call(message.request_id) : message.request_id;
+        if (message.token_to_revoke != null && Object.hasOwnProperty.call(message, "token_to_revoke"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.token_to_revoke = typeof message.token_to_revoke === "number" ? BigInt(message.token_to_revoke) : $util.Long.fromBits(message.token_to_revoke.low >>> 0, message.token_to_revoke.high >>> 0, true).toBigInt();
+            else if (typeof message.token_to_revoke === "number")
+                object.token_to_revoke = options.longs === String ? String(message.token_to_revoke) : message.token_to_revoke;
+            else
+                object.token_to_revoke = options.longs === String ? $util.Long.prototype.toString.call(message.token_to_revoke) : options.longs === Number ? new $util.LongBits(message.token_to_revoke.low >>> 0, message.token_to_revoke.high >>> 0).toNumber(true) : message.token_to_revoke;
+        return object;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Request.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CAuthentication_PollAuthSessionStatus_Request.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CAuthentication_PollAuthSessionStatus_Request";
+    };
+
+    return CAuthentication_PollAuthSessionStatus_Request;
+})();
+
+export const CAuthentication_PollAuthSessionStatus_Response = $root.CAuthentication_PollAuthSessionStatus_Response = (() => {
+
+    function CAuthentication_PollAuthSessionStatus_Response(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CAuthentication_PollAuthSessionStatus_Response.prototype.new_client_id = $util.Long ? $util.Long.fromBits(0,0,true) : 0;
+    CAuthentication_PollAuthSessionStatus_Response.prototype.new_challenge_url = "";
+    CAuthentication_PollAuthSessionStatus_Response.prototype.refresh_token = "";
+    CAuthentication_PollAuthSessionStatus_Response.prototype.access_token = "";
+    CAuthentication_PollAuthSessionStatus_Response.prototype.had_remote_interaction = false;
+    CAuthentication_PollAuthSessionStatus_Response.prototype.account_name = "";
+    CAuthentication_PollAuthSessionStatus_Response.prototype.new_guard_data = "";
+    CAuthentication_PollAuthSessionStatus_Response.prototype.agreement_session_url = "";
+
+    CAuthentication_PollAuthSessionStatus_Response.create = function create(properties) {
+        return new CAuthentication_PollAuthSessionStatus_Response(properties);
+    };
+
+    CAuthentication_PollAuthSessionStatus_Response.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.new_client_id != null && Object.hasOwnProperty.call(message, "new_client_id"))
+            writer.uint32(8).uint64(message.new_client_id);
+        if (message.new_challenge_url != null && Object.hasOwnProperty.call(message, "new_challenge_url"))
+            writer.uint32(18).string(message.new_challenge_url);
+        if (message.refresh_token != null && Object.hasOwnProperty.call(message, "refresh_token"))
+            writer.uint32(26).string(message.refresh_token);
+        if (message.access_token != null && Object.hasOwnProperty.call(message, "access_token"))
+            writer.uint32(34).string(message.access_token);
+        if (message.had_remote_interaction != null && Object.hasOwnProperty.call(message, "had_remote_interaction"))
+            writer.uint32(40).bool(message.had_remote_interaction);
+        if (message.account_name != null && Object.hasOwnProperty.call(message, "account_name"))
+            writer.uint32(50).string(message.account_name);
+        if (message.new_guard_data != null && Object.hasOwnProperty.call(message, "new_guard_data"))
+            writer.uint32(58).string(message.new_guard_data);
+        if (message.agreement_session_url != null && Object.hasOwnProperty.call(message, "agreement_session_url"))
+            writer.uint32(66).string(message.agreement_session_url);
+        return writer;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Response.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CAuthentication_PollAuthSessionStatus_Response();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.new_client_id = reader.uint64();
+                    break;
+                }
+            case 2: {
+                    message.new_challenge_url = reader.string();
+                    break;
+                }
+            case 3: {
+                    message.refresh_token = reader.string();
+                    break;
+                }
+            case 4: {
+                    message.access_token = reader.string();
+                    break;
+                }
+            case 5: {
+                    message.had_remote_interaction = reader.bool();
+                    break;
+                }
+            case 6: {
+                    message.account_name = reader.string();
+                    break;
+                }
+            case 7: {
+                    message.new_guard_data = reader.string();
+                    break;
+                }
+            case 8: {
+                    message.agreement_session_url = reader.string();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Response.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CAuthentication_PollAuthSessionStatus_Response)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CAuthentication_PollAuthSessionStatus_Response: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CAuthentication_PollAuthSessionStatus_Response();
+        if (object.new_client_id != null)
+            if ($util.Long)
+                message.new_client_id = $util.Long.fromValue(object.new_client_id, true);
+            else if (typeof object.new_client_id === "string")
+                message.new_client_id = parseInt(object.new_client_id, 10);
+            else if (typeof object.new_client_id === "number")
+                message.new_client_id = object.new_client_id;
+            else if (typeof object.new_client_id === "object")
+                message.new_client_id = new $util.LongBits(object.new_client_id.low >>> 0, object.new_client_id.high >>> 0).toNumber(true);
+        if (object.new_challenge_url != null)
+            message.new_challenge_url = String(object.new_challenge_url);
+        if (object.refresh_token != null)
+            message.refresh_token = String(object.refresh_token);
+        if (object.access_token != null)
+            message.access_token = String(object.access_token);
+        if (object.had_remote_interaction != null)
+            message.had_remote_interaction = Boolean(object.had_remote_interaction);
+        if (object.account_name != null)
+            message.account_name = String(object.account_name);
+        if (object.new_guard_data != null)
+            message.new_guard_data = String(object.new_guard_data);
+        if (object.agreement_session_url != null)
+            message.agreement_session_url = String(object.agreement_session_url);
+        return message;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Response.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            if ($util.Long) {
+                let long = new $util.Long(0, 0, true);
+                object.new_client_id = options.longs === String ? long.toString() : options.longs === Number ? long.toNumber() : typeof BigInt !== "undefined" && options.longs === BigInt ? long.toBigInt() : long;
+            } else
+                object.new_client_id = options.longs === String ? "0" : typeof BigInt !== "undefined" && options.longs === BigInt ? BigInt("0") : 0;
+            object.new_challenge_url = "";
+            object.refresh_token = "";
+            object.access_token = "";
+            object.had_remote_interaction = false;
+            object.account_name = "";
+            object.new_guard_data = "";
+            object.agreement_session_url = "";
+        }
+        if (message.new_client_id != null && Object.hasOwnProperty.call(message, "new_client_id"))
+            if (typeof BigInt !== "undefined" && options.longs === BigInt)
+                object.new_client_id = typeof message.new_client_id === "number" ? BigInt(message.new_client_id) : $util.Long.fromBits(message.new_client_id.low >>> 0, message.new_client_id.high >>> 0, true).toBigInt();
+            else if (typeof message.new_client_id === "number")
+                object.new_client_id = options.longs === String ? String(message.new_client_id) : message.new_client_id;
+            else
+                object.new_client_id = options.longs === String ? $util.Long.prototype.toString.call(message.new_client_id) : options.longs === Number ? new $util.LongBits(message.new_client_id.low >>> 0, message.new_client_id.high >>> 0).toNumber(true) : message.new_client_id;
+        if (message.new_challenge_url != null && Object.hasOwnProperty.call(message, "new_challenge_url"))
+            object.new_challenge_url = message.new_challenge_url;
+        if (message.refresh_token != null && Object.hasOwnProperty.call(message, "refresh_token"))
+            object.refresh_token = message.refresh_token;
+        if (message.access_token != null && Object.hasOwnProperty.call(message, "access_token"))
+            object.access_token = message.access_token;
+        if (message.had_remote_interaction != null && Object.hasOwnProperty.call(message, "had_remote_interaction"))
+            object.had_remote_interaction = message.had_remote_interaction;
+        if (message.account_name != null && Object.hasOwnProperty.call(message, "account_name"))
+            object.account_name = message.account_name;
+        if (message.new_guard_data != null && Object.hasOwnProperty.call(message, "new_guard_data"))
+            object.new_guard_data = message.new_guard_data;
+        if (message.agreement_session_url != null && Object.hasOwnProperty.call(message, "agreement_session_url"))
+            object.agreement_session_url = message.agreement_session_url;
+        return object;
+    };
+
+    CAuthentication_PollAuthSessionStatus_Response.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CAuthentication_PollAuthSessionStatus_Response.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CAuthentication_PollAuthSessionStatus_Response";
+    };
+
+    return CAuthentication_PollAuthSessionStatus_Response;
+})();
+
 export { $root as default };

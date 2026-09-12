@@ -20,6 +20,7 @@ export * from './domain/attributes.js';
 export * from './domain/econ.js';
 export * from './domain/names.js';
 export * from './domain/diff.js';
+export * from './domain/jwt.js';
 
 export { Catalog } from './catalog/catalog.js';
 export * from './catalog/types.js';

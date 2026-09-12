@@ -2,9 +2,13 @@ import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { encodeNetMessage, JOBID_NONE, PROTO_MASK } from '../extension/src/steam/frame.js';
 import {
+  CAuthentication_BeginAuthSessionViaQR_Request,
+  CAuthentication_PollAuthSessionStatus_Request,
+  CAuthentication_PollAuthSessionStatus_Response,
   CMsgClientGamesPlayed,
   CMsgClientHello,
   CMsgGCClient,
+  decode,
   encode,
 } from '../extension/src/steam/protos.js';
 
@@ -25,6 +29,7 @@ import {
 const require = createRequire(import.meta.url);
 const goProtos = require('globaloffensive/protobufs/generated/_load.js');
 const suProtos = require('steam-user/protobufs/generated/_load.js');
+const ssProtos = require('steam-session/dist/protobuf-generated/load.js').default;
 const Language = require('globaloffensive/language.js') as Record<string, number>;
 
 /** Reads a message id from the reference table, failing loudly if it moved. */
@@ -111,6 +116,60 @@ describe('what we send to the game coordinator', () => {
     expect(Language.ClientConnectionStatus).toBe(4009);
     expect(Language.CasketItemLoadContents).toBe(1094);
     expect(Language.ItemCustomizationNotification).toBe(1090);
+  });
+});
+
+describe('what we send to start a QR sign-in', () => {
+  it('is byte-identical to steam-session for the QR request', () => {
+    // steam-session/dist/AuthenticationClient.js:259-294 -- the device details
+    // it sends for a SteamClient session, which is the audience we need.
+    const name = 'CS2 Inventory (browser extension)';
+    const fields = {
+      device_friendly_name: name,
+      platform_type: 1,
+      device_details: {
+        device_friendly_name: name,
+        platform_type: 1,
+        os_type: 20,
+        gaming_device_type: 1,
+      },
+    };
+
+    expect(hex(encode(CAuthentication_BeginAuthSessionViaQR_Request, fields))).toBe(
+      hex(
+        ssProtos.CAuthentication_BeginAuthSessionViaQR_Request.encode(fields).finish() as Buffer,
+      ),
+    );
+  });
+
+  it('is byte-identical to steam-session for a poll', () => {
+    const fields = { client_id: '12345678901234567890', request_id: new Uint8Array([1, 2, 3, 4]) };
+
+    expect(hex(encode(CAuthentication_PollAuthSessionStatus_Request, fields))).toBe(
+      hex(
+        ssProtos.CAuthentication_PollAuthSessionStatus_Request.encode(fields).finish() as Buffer,
+      ),
+    );
+  });
+
+  it('decodes a poll response steam-session encoded', () => {
+    const encoded = ssProtos.CAuthentication_PollAuthSessionStatus_Response.encode({
+      refresh_token: 'token-value',
+      account_name: 'someone',
+      had_remote_interaction: true,
+      new_challenge_url: 'https://s.team/q/1/999',
+    }).finish() as Buffer;
+
+    expect(
+      decode<{ refresh_token?: string; account_name?: string; had_remote_interaction?: boolean }>(
+        CAuthentication_PollAuthSessionStatus_Response,
+        new Uint8Array(encoded),
+      ),
+    ).toMatchObject({
+      refresh_token: 'token-value',
+      account_name: 'someone',
+      had_remote_interaction: true,
+    });
   });
 });
 

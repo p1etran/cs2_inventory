@@ -1,3 +1,5 @@
+import { decodeJwtClaims } from '../domain/jwt.js';
+
 /**
  * A Steam refresh token is a JWT. Reading it locally lets us say "sign in
  * again" in plain words instead of letting the Steam client throw a raw
@@ -13,26 +15,6 @@ export interface RefreshTokenInfo {
   problem: string | null;
 }
 
-interface TokenClaims {
-  iss?: string;
-  sub?: string;
-  exp?: number;
-}
-
-function decodeClaims(token: string): TokenClaims | null {
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-
-  const payload = parts[1];
-  if (!payload) return null;
-
-  try {
-    const standard = payload.replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(Buffer.from(standard, 'base64').toString('utf8')) as TokenClaims;
-  } catch {
-    return null;
-  }
-}
 
 export function inspectRefreshToken(token: string, now = new Date()): RefreshTokenInfo {
   const unusable = (problem: string): RefreshTokenInfo => ({
@@ -45,7 +27,7 @@ export function inspectRefreshToken(token: string, now = new Date()): RefreshTok
 
   if (!token) return unusable('the saved session has no token');
 
-  const claims = decodeClaims(token);
+  const claims = decodeJwtClaims(token);
   if (!claims) return unusable('the saved token is not readable');
 
   // Only refresh tokens carry iss=steam, and only those are accepted for login.

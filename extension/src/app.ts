@@ -1,7 +1,9 @@
 import { Catalog, normalizeEconItem, readCasketId, type CatalogIndex } from '../../src/core.js';
+import { signInWithQr } from './steam/auth.js';
 import { CLIENT_OS_WEB, CmClient, UI_MODE_WEB, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
-import { NoSteamSessionError, readSteamSession } from './steam/session.js';
+import { forgetSession, inspectToken, loadSession, saveSession } from './steam/tokens.js';
+import { renderQrSvg } from './ui/qr.js';
 
 /**
  * Milestone 2b: reach the game coordinator and read one storage unit.
@@ -19,6 +21,8 @@ const SCHEMA_URL =
 const logEl = document.getElementById('log') as HTMLPreElement;
 const accountEl = document.getElementById('account') as HTMLDivElement;
 const connectButton = document.getElementById('connect') as HTMLButtonElement;
+const signOutButton = document.getElementById('signout') as HTMLButtonElement;
+const signInEl = document.getElementById('signin') as HTMLDivElement;
 
 function write(text: string, cls = ''): void {
   const span = document.createElement('span');
@@ -69,6 +73,89 @@ function describeUnit(item: GcEconItem, catalog: Catalog): string {
   return `${label} (${resolved.containedCount ?? 0} items, id ${resolved.assetId})`;
 }
 
+/** Shows the QR code and what to do with it. */
+function showQr(challengeUrl: string): void {
+  signInEl.hidden = false;
+  signInEl.replaceChildren();
+
+  const frame = document.createElement('div');
+  frame.id = 'qr';
+  frame.append(renderQrSvg(challengeUrl));
+
+  const steps = document.createElement('ol');
+  steps.className = 'steps';
+  for (const step of [
+    'Open the Steam app on your phone.',
+    'Tap the Steam Guard shield, then the QR scanner.',
+    'Scan this code and approve the sign-in.',
+  ]) {
+    const item = document.createElement('li');
+    item.textContent = step;
+    steps.append(item);
+  }
+
+  const note = document.createElement('p');
+  note.className = 'note';
+  note.textContent =
+    'Scanning signs you in on this device only. Steam never shows us your password, ' +
+    'and the sign-in is stored in this browser profile — never sent anywhere but Steam. ' +
+    'You only need to do this again when it expires, not on every visit.';
+
+  signInEl.append(frame, steps, note);
+}
+
+function hideQr(): void {
+  signInEl.hidden = true;
+  signInEl.replaceChildren();
+}
+
+/**
+ * Returns a usable client refresh token, signing in by QR if there isn't one.
+ *
+ * A QR scan is the cheapest sign-in Steam offers that yields a client-audience
+ * token, and that audience is not optional: measured against the real
+ * coordinator, a session built from the browser's own Steam cookies logs on
+ * and is even granted the game slot, and CS2 still answers `NO_SESSION` to
+ * every hello. There is no API to widen a token's audience, so this is the
+ * floor, not a shortcut we failed to avoid.
+ */
+async function ensureSignedIn(cm: CmClient): Promise<{ refreshToken: string; steamId: string }> {
+  const saved = await loadSession();
+  if (saved) {
+    const status = inspectToken(saved.refreshToken);
+    if (status.usable && status.steamId) {
+      const days = status.expiresAt
+        ? Math.round((status.expiresAt.getTime() - Date.now()) / 86_400_000)
+        : null;
+      write(
+        `Using the saved sign-in for ${saved.accountName || status.steamId}` +
+          `${days === null ? '' : ` (${days} days left)`}`,
+        'ok',
+      );
+      return { refreshToken: saved.refreshToken, steamId: status.steamId };
+    }
+    write(`Signing in again: ${status.problem}`, 'dim');
+  }
+
+  write('Scan the QR code with the Steam app on your phone.', '');
+  cm.sayHello();
+
+  const signedIn = await signInWithQr(cm, {
+    onChallenge: (url) => showQr(url),
+    onScanned: () => write('Scanned. Approve it on your phone.', 'dim'),
+  });
+  hideQr();
+
+  const status = inspectToken(signedIn.refreshToken);
+  if (!status.usable || !status.steamId) {
+    throw new Error(`Steam returned a sign-in we cannot use: ${status.problem}`);
+  }
+
+  await saveSession({ refreshToken: signedIn.refreshToken, accountName: signedIn.accountName });
+  write(`Signed in as ${signedIn.accountName || status.steamId}`, 'ok');
+  return { refreshToken: signedIn.refreshToken, steamId: status.steamId };
+}
+
 /**
  * The logon identifies this client as a web one, and has to.
  *
@@ -84,18 +171,19 @@ function describeUnit(item: GcEconItem, catalog: Catalog): string {
 const WEB_IDENTITY = { clientOsType: CLIENT_OS_WEB, uiMode: UI_MODE_WEB };
 
 /** Logs on and reaches the GC, or throws. Leaves the connection open on success. */
-async function reachGc(
-  session: Awaited<ReturnType<typeof readSteamSession>>,
-): Promise<{ client: CmClient; gc: GcClient }> {
+async function reachGc(): Promise<{ client: CmClient; gc: GcClient }> {
   const client = new CmClient({
     onLog: (message) => write(message, 'dim'),
     clientIdentity: WEB_IDENTITY,
   });
 
   await client.connect();
-  const logon = await client.logOn(session);
-  showAccount(session.accountName || logon.steamId, logon.steamId);
+  const { refreshToken, steamId } = await ensureSignedIn(client);
+
+  const logon = await client.logOnWithToken(refreshToken, steamId);
+  showAccount(logon.personaName ?? logon.steamId, logon.steamId);
   write(`Logged on as ${logon.steamId}`, 'ok');
+  signOutButton.hidden = false;
 
   const gc = new GcClient(client, { onLog: (message) => write(message, 'dim'), casketIdOf });
   try {
@@ -116,11 +204,7 @@ async function run(): Promise<void> {
   let client: CmClient | null = null;
 
   try {
-    const session = await readSteamSession();
-    write(`Exchanged this browser's Steam session for a logon token`, 'ok');
-    write('No password, no Steam Guard code, and no cookie was read.', 'dim');
-
-    const reached = await reachGc(session);
+    const reached = await reachGc();
     client = reached.client;
     const { gc } = reached;
 
@@ -180,16 +264,27 @@ async function run(): Promise<void> {
     const message = error instanceof Error ? error.message : String(error);
     write('', '');
     write(message, 'bad');
-    if (error instanceof NoSteamSessionError) {
-      write('Open steamcommunity.com, sign in, then try again.', 'dim');
-    }
   } finally {
+    hideQr();
     client?.disconnect();
     connectButton.disabled = false;
   }
 }
 
 connectButton.addEventListener('click', () => void run());
+
+signOutButton.addEventListener('click', () => {
+  void forgetSession().then(() => {
+    signOutButton.hidden = true;
+    accountEl.replaceChildren();
+    write('Sign-in forgotten. The next read will show a new QR code.', 'dim');
+  });
+});
+
+// Offer to forget a sign-in that is already saved, before any connection.
+void loadSession().then((saved) => {
+  if (saved) signOutButton.hidden = false;
+});
 
 // Leave no rule behind once the page goes away.
 window.addEventListener('pagehide', () => void removeOriginRule());

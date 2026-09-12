@@ -1349,6 +1349,257 @@
           "id": 3
         }
       }
+    },
+    "CMsgClientHelloSteam": {
+      "edition": "proto2",
+      "fields": {
+        "protocol_version": {
+          "type": "uint32",
+          "id": 1
+        }
+      }
+    },
+    "CAuthentication_BeginAuthSessionViaQR_Request": {
+      "fields": {
+        "device_friendly_name": {
+          "type": "string",
+          "id": 1
+        },
+        "platform_type": {
+          "type": ".EAuthTokenPlatformType",
+          "id": 2,
+          "options": {
+            "default": "k_EAuthTokenPlatformType_Unknown"
+          }
+        },
+        "device_details": {
+          "type": ".CAuthentication_DeviceDetails",
+          "id": 3,
+          "options": {
+            "(description)": "User-supplied details about the device attempting to sign in"
+          }
+        },
+        "website_id": {
+          "type": "string",
+          "id": 4,
+          "options": {
+            "default": "Unknown",
+            "(description)": "(EMachineAuthWebDomain) identifier of client requesting auth"
+          }
+        }
+      }
+    },
+    "EAuthTokenPlatformType": {
+      "values": {
+        "k_EAuthTokenPlatformType_Unknown": 0,
+        "k_EAuthTokenPlatformType_SteamClient": 1,
+        "k_EAuthTokenPlatformType_WebBrowser": 2,
+        "k_EAuthTokenPlatformType_MobileApp": 3
+      }
+    },
+    "CAuthentication_DeviceDetails": {
+      "fields": {
+        "device_friendly_name": {
+          "type": "string",
+          "id": 1,
+          "options": {
+            "(description)": "User-supplied, or client-supplied, friendly name of device"
+          }
+        },
+        "platform_type": {
+          "type": ".EAuthTokenPlatformType",
+          "id": 2,
+          "options": {
+            "default": "k_EAuthTokenPlatformType_Unknown",
+            "(description)": "EAuthTokenPlatformType, claimed, of device"
+          }
+        },
+        "os_type": {
+          "type": "int32",
+          "id": 3,
+          "options": {
+            "(description)": "EOSType, claimed, of authorized device"
+          }
+        },
+        "gaming_device_type": {
+          "type": "uint32",
+          "id": 4,
+          "options": {
+            "(description)": "EGamingDeviceType, claimed, of authorized device for steam client-type devices"
+          }
+        },
+        "client_count": {
+          "type": "uint32",
+          "id": 5,
+          "options": {
+            "(description)": "For desktop clients, quantized number of users in history"
+          }
+        },
+        "machine_id": {
+          "type": "bytes",
+          "id": 6,
+          "options": {
+            "(description)": "Additional device context"
+          }
+        }
+      }
+    },
+    "CAuthentication_BeginAuthSessionViaQR_Response": {
+      "fields": {
+        "client_id": {
+          "type": "uint64",
+          "id": 1,
+          "options": {
+            "(description)": "unique identifier of requestor, also used for routing, portion of QR code"
+          }
+        },
+        "challenge_url": {
+          "type": "string",
+          "id": 2,
+          "options": {
+            "(description)": "URL based on client ID, which will be rendered as QR code"
+          }
+        },
+        "request_id": {
+          "type": "bytes",
+          "id": 3,
+          "options": {
+            "(description)": "unique request ID to be presented by requestor at poll time - must not be rendered in QR"
+          }
+        },
+        "interval": {
+          "type": "float",
+          "id": 4,
+          "options": {
+            "(description)": "refresh interval with which requestor should call PollAuthSessionStatus"
+          }
+        },
+        "allowed_confirmations": {
+          "rule": "repeated",
+          "type": ".CAuthentication_AllowedConfirmation",
+          "id": 5,
+          "options": {
+            "(description)": "the confirmation types that will be able to confirm the request"
+          }
+        },
+        "version": {
+          "type": "int32",
+          "id": 6,
+          "options": {
+            "(description)": "version of the QR data"
+          }
+        }
+      }
+    },
+    "CAuthentication_AllowedConfirmation": {
+      "fields": {
+        "confirmation_type": {
+          "type": ".EAuthSessionGuardType",
+          "id": 1,
+          "options": {
+            "default": "k_EAuthSessionGuardType_Unknown",
+            "(description)": "authentication can proceed with this confirmation type"
+          }
+        },
+        "associated_message": {
+          "type": "string",
+          "id": 2,
+          "options": {
+            "(description)": "message to be interpreted depending on the confirmation type. for email confirmation, this might be the redacted email address to which email was sent."
+          }
+        }
+      }
+    },
+    "EAuthSessionGuardType": {
+      "values": {
+        "k_EAuthSessionGuardType_Unknown": 0,
+        "k_EAuthSessionGuardType_None": 1,
+        "k_EAuthSessionGuardType_EmailCode": 2,
+        "k_EAuthSessionGuardType_DeviceCode": 3,
+        "k_EAuthSessionGuardType_DeviceConfirmation": 4,
+        "k_EAuthSessionGuardType_EmailConfirmation": 5,
+        "k_EAuthSessionGuardType_MachineToken": 6,
+        "k_EAuthSessionGuardType_LegacyMachineAuth": 7
+      }
+    },
+    "CAuthentication_PollAuthSessionStatus_Request": {
+      "fields": {
+        "client_id": {
+          "type": "uint64",
+          "id": 1
+        },
+        "request_id": {
+          "type": "bytes",
+          "id": 2
+        },
+        "token_to_revoke": {
+          "type": "fixed64",
+          "id": 3,
+          "options": {
+            "(description)": "If this is set to a token owned by this user, that token will be retired"
+          }
+        }
+      }
+    },
+    "CAuthentication_PollAuthSessionStatus_Response": {
+      "fields": {
+        "new_client_id": {
+          "type": "uint64",
+          "id": 1,
+          "options": {
+            "(description)": "if challenge is old, this is the new client id"
+          }
+        },
+        "new_challenge_url": {
+          "type": "string",
+          "id": 2,
+          "options": {
+            "(description)": "if challenge is old, this is the new challenge ID to re-render for mobile confirmation"
+          }
+        },
+        "refresh_token": {
+          "type": "string",
+          "id": 3,
+          "options": {
+            "(description)": "if login has been confirmed, this is the requestor's new refresh token"
+          }
+        },
+        "access_token": {
+          "type": "string",
+          "id": 4,
+          "options": {
+            "(description)": "if login has been confirmed, this is a new token subordinate to refresh_token"
+          }
+        },
+        "had_remote_interaction": {
+          "type": "bool",
+          "id": 5,
+          "options": {
+            "(description)": "whether or not the auth session appears to have had remote interaction from a potential confirmer"
+          }
+        },
+        "account_name": {
+          "type": "string",
+          "id": 6,
+          "options": {
+            "(description)": "account name of authenticating account, for use by UI layer"
+          }
+        },
+        "new_guard_data": {
+          "type": "string",
+          "id": 7,
+          "options": {
+            "(description)": "if login has been confirmed, may contain remembered machine ID for future login"
+          }
+        },
+        "agreement_session_url": {
+          "type": "string",
+          "id": 8,
+          "options": {
+            "(description)": "agreement the user needs to agree to"
+          }
+        }
+      }
     }
   }
 }

@@ -17,11 +17,16 @@ export const EMsg = {
   ClientGamesPlayedWithDataBlob: 5410,
   ClientChangeStatus: 716,
   ClientAccountInfo: 768,
+  ServiceMethodResponse: 147,
   ClientToGC: 5452,
   ClientFromGC: 5453,
   ClientLogon: 5514,
   ClientPlayingSessionState: 9600,
   ClientKickPlayingSession: 9601,
+  // Service calls that need no logged-on session: this is how a QR sign-in is
+  // started, before there is any account to log on as.
+  ServiceMethodCallFromClientNonAuthed: 9804,
+  ClientHello: 9805,
 } as const;
 
 /**
