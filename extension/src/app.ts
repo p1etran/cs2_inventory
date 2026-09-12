@@ -4,52 +4,176 @@ import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
 import { machineId } from './steam/machineid.js';
 import { forgetSession, inspectToken, loadSession, saveSession } from './steam/tokens.js';
-import { Store } from './store.js';
+import { Store, type SearchOptions } from './store.js';
 import { runSync } from './sync.js';
 import { CollapsingLog } from './ui/log.js';
 import { renderQrSvg } from './ui/qr.js';
+import {
+  el,
+  emptyMessage,
+  eventRow,
+  itemRow,
+  renderContainers,
+  renderStats,
+  stackRow,
+} from './ui/render.js';
 
 /**
- * The page: sign in, read the whole account, keep the index.
+ * The page.
  *
- * Naming and reconciliation are not reimplemented here. `src/core.ts` is the
- * same code the local CLI uses, which is why item names in this page can be
- * compared directly against `node dist/cli.js containers` for the same
- * account -- the strongest correctness check available, since the Node path is
- * already known to be right.
+ * Everything it shows comes from the local index, so it is useful the moment
+ * it opens and needs no connection to browse -- a sync is a thing you press,
+ * not a thing you wait for. Naming and reconciliation are not reimplemented
+ * here: `src/core.ts` is the same code the local CLI uses.
  */
 
-const logEl = document.getElementById('log') as HTMLPreElement;
-const accountEl = document.getElementById('account') as HTMLDivElement;
-const connectButton = document.getElementById('connect') as HTMLButtonElement;
-const signOutButton = document.getElementById('signout') as HTMLButtonElement;
-const signInEl = document.getElementById('signin') as HTMLDivElement;
-const cancelButton = document.getElementById('cancel') as HTMLButtonElement;
+const PAGE_SIZE = 100;
+
+const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
 const store = new Store();
-
-const log = new CollapsingLog(logEl);
-
+const log = new CollapsingLog($('log'));
 const write = (text: string, cls = ''): void => log.write(text, cls);
-const clearLog = (): void => log.clear();
 
-function showAccount(name: string, steamId: string): void {
-  accountEl.replaceChildren();
-  const strong = document.createElement('b');
-  strong.textContent = `Signed in as ${name}`;
-  const detail = document.createElement('div');
-  detail.className = 'dim';
-  detail.textContent = steamId;
-  accountEl.append(strong, detail);
+const state = {
+  query: '',
+  container: null as string | null,
+  location: 'all' as NonNullable<SearchOptions['location']>,
+  category: '',
+  rarity: '',
+  stattrak: false,
+  sort: 'name' as NonNullable<SearchOptions['sort']>,
+  view: 'items' as 'items' | 'stacks' | 'changes',
+  page: 0,
+  syncing: false,
+};
+
+/** Unit labels by asset id, so rows can say where an item lives. */
+const labels = new Map<string, string>();
+
+function currentOptions(): SearchOptions {
+  return {
+    query: state.query || undefined,
+    containerId: state.container ?? undefined,
+    location: state.location,
+    category: state.category || undefined,
+    rarity: state.rarity || undefined,
+    stattrak: state.stattrak || undefined,
+    sort: state.sort,
+    limit: PAGE_SIZE,
+    offset: state.page * PAGE_SIZE,
+  };
 }
 
-/**
- * Loads the item schema and builds a catalog.
- *
- * Only the skins file is fetched for this milestone: it is the one that needs
- * the weapon-and-paint pairing, and it keeps the first run quick. A full sync
- * will want the other families too.
- */
+function render(): void {
+  const containers = store.listContainers();
+  labels.clear();
+  for (const container of containers) labels.set(container.assetId, container.label);
+
+  $('stats').replaceChildren(...renderStats(store.getStats()));
+  $('containers').replaceChildren(
+    ...renderContainers({
+      containers,
+      selected: state.container,
+      onSelect: (assetId) => {
+        state.container = assetId;
+        state.page = 0;
+        render();
+      },
+    }),
+  );
+
+  const rows = $('rows');
+  let total = 0;
+  let shown = 0;
+
+  if (state.view === 'changes') {
+    const events = store.recentEvents(200);
+    total = events.length;
+    shown = events.length;
+    rows.replaceChildren(...events.map((event) => eventRow(event, labels)));
+  } else if (state.view === 'stacks') {
+    const result = store.listStacks(currentOptions());
+    total = result.total;
+    shown = result.rows.length;
+    rows.replaceChildren(
+      ...result.rows.map((stack) =>
+        stackRow(stack, (name) => {
+          // Picking a stack drills into the items behind it, which is what
+          // clicking a group is for.
+          ($('q') as HTMLInputElement).value = name;
+          state.query = name;
+          state.view = 'items';
+          state.page = 0;
+          syncTabs();
+          render();
+        }),
+      ),
+    );
+  } else {
+    const result = store.search(currentOptions());
+    total = result.total;
+    shown = result.items.length;
+    rows.replaceChildren(...result.items.map((item) => itemRow(item, labels)));
+  }
+
+  if (shown === 0) {
+    rows.replaceChildren(
+      el(
+        'div',
+        'empty',
+        emptyMessage({ hasIndex: store.items.length > 0, hasQuery: state.query !== '' }),
+      ),
+    );
+  }
+
+  const noun = state.view === 'stacks' ? 'groups' : state.view === 'changes' ? 'changes' : 'items';
+  $('result-count').textContent = total ? `${total.toLocaleString()} ${noun}` : '';
+
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const paged = state.view !== 'changes';
+  $('page-label').textContent = paged && total > PAGE_SIZE ? `Page ${state.page + 1} of ${pages}` : '';
+  ($('prev') as HTMLButtonElement).disabled = !paged || state.page === 0;
+  ($('next') as HTMLButtonElement).disabled = !paged || state.page + 1 >= pages;
+}
+
+function syncTabs(): void {
+  for (const tab of document.querySelectorAll<HTMLElement>('.tab')) {
+    tab.classList.toggle('is-active', tab.dataset.view === state.view);
+  }
+}
+
+function loadFacets(): void {
+  const facets = store.listFacets();
+  const fill = (id: string, values: string[], all: string, selected: string) => {
+    const select = $(id) as HTMLSelectElement;
+    select.replaceChildren(
+      el('option', null, all),
+      ...values.map((value) => {
+        const option = el('option', null, value);
+        option.value = value;
+        return option;
+      }),
+    );
+    (select.firstElementChild as HTMLOptionElement).value = '';
+    select.value = selected;
+  };
+  fill('category', facets.categories, 'All types', state.category);
+  fill('rarity', facets.rarities, 'All rarities', state.rarity);
+}
+
+function status(message: string, cls = ''): void {
+  const bar = $('syncbar');
+  bar.hidden = false;
+  bar.className = `syncbar${cls ? ` ${cls}` : ''}`;
+  $('syncmsg').textContent = message;
+}
+
+function showAccount(name: string): void {
+  $('account').textContent = name ? `Signed in as ${name}` : '';
+}
+
+/** Loads the item schema and builds a catalog. */
 async function loadCatalog(): Promise<Catalog> {
   const { buildCatalogIndex } = await import('../../src/core.js');
   const index = await buildCatalogIndex({
@@ -63,240 +187,254 @@ async function loadCatalog(): Promise<Catalog> {
   return new Catalog(index as CatalogIndex);
 }
 
-/** The storage unit an item sits in, read straight off its attributes. */
-function casketIdOf(item: GcEconItem): string | null {
-  return readCasketId(item.attribute);
-}
+const casketIdOf = (item: GcEconItem): string | null => readCasketId(item.attribute);
 
-/** Shows the QR code and what to do with it. */
 function showQr(challengeUrl: string): void {
-  signInEl.hidden = false;
-  signInEl.replaceChildren();
+  const panel = $('signin');
+  panel.hidden = false;
+  panel.replaceChildren();
 
-  const frame = document.createElement('div');
+  const heading = el('b', null, 'Sign in with the Steam app');
+  const frame = el('div');
   frame.id = 'qr';
   frame.append(renderQrSvg(challengeUrl));
 
-  const steps = document.createElement('ol');
-  steps.className = 'steps';
+  const steps = el('ol', 'steps');
   for (const step of [
     'Open the Steam app on your phone.',
     'Tap the Steam Guard shield, then the QR scanner.',
     'Scan this code and approve the sign-in.',
   ]) {
-    const item = document.createElement('li');
-    item.textContent = step;
-    steps.append(item);
+    steps.append(el('li', null, step));
   }
 
-  const note = document.createElement('p');
-  note.className = 'note';
-  note.textContent =
-    'Scanning signs you in on this device only. Steam never shows us your password, ' +
-    'and the sign-in is stored in this browser profile — never sent anywhere but Steam. ' +
-    'You only need to do this again when it expires, not on every visit.';
+  const note = el(
+    'p',
+    'note',
+    'Steam never shows us your password, and the sign-in is kept in this browser ' +
+      'profile only — never sent anywhere but Steam. You need this again when it ' +
+      'expires, not on every visit.',
+  );
 
-  signInEl.append(frame, steps, note);
+  panel.append(heading, el('div', null, ''), frame, steps, note);
 }
 
 function hideQr(): void {
-  signInEl.hidden = true;
-  signInEl.replaceChildren();
+  $('signin').hidden = true;
+  $('signin').replaceChildren();
 }
 
-/**
- * Returns a usable client refresh token, signing in by QR if there isn't one.
- *
- * A QR scan is the cheapest sign-in Steam offers that yields a client-audience
- * token, and that audience is not optional: measured against the real
- * coordinator, a session built from the browser's own Steam cookies logs on
- * and is even granted the game slot, and CS2 still answers `NO_SESSION` to
- * every hello. There is no API to widen a token's audience, so this is the
- * floor, not a shortcut we failed to avoid.
- */
 async function ensureSignedIn(
   cm: CmClient,
 ): Promise<{ refreshToken: string; steamId: string; accountName: string }> {
   const saved = await loadSession();
   if (saved) {
-    const status = inspectToken(saved.refreshToken);
-    if (status.usable && status.steamId) {
-      const days = status.expiresAt
-        ? Math.round((status.expiresAt.getTime() - Date.now()) / 86_400_000)
-        : null;
-      write(
-        `Using the saved sign-in for ${saved.accountName || status.steamId}` +
-          `${days === null ? '' : ` (${days} days left)`}`,
-        'ok',
-      );
+    const token = inspectToken(saved.refreshToken);
+    if (token.usable && token.steamId) {
       return {
         refreshToken: saved.refreshToken,
-        steamId: status.steamId,
+        steamId: token.steamId,
         accountName: saved.accountName,
       };
     }
-    write(`Signing in again: ${status.problem}`, 'dim');
+    status(`Signing in again: ${token.problem}`);
   }
 
-  write('Scan the QR code with the Steam app on your phone.', '');
+  status('Scan the QR code with the Steam app on your phone');
   cm.sayHello();
 
   const signedIn = await signInWithQr(cm, {
     onChallenge: (url) => showQr(url),
-    onScanned: () => write('Scanned. Approve it on your phone.', 'dim'),
+    onScanned: () => status('Scanned. Approve it on your phone.'),
   });
   hideQr();
 
-  const status = inspectToken(signedIn.refreshToken);
-  if (!status.usable || !status.steamId) {
-    throw new Error(`Steam returned a sign-in we cannot use: ${status.problem}`);
+  const token = inspectToken(signedIn.refreshToken);
+  if (!token.usable || !token.steamId) {
+    throw new Error(`Steam returned a sign-in we cannot use: ${token.problem}`);
   }
 
   await saveSession({ refreshToken: signedIn.refreshToken, accountName: signedIn.accountName });
-  write(`Signed in as ${signedIn.accountName || status.steamId}`, 'ok');
   return {
     refreshToken: signedIn.refreshToken,
-    steamId: status.steamId,
+    steamId: token.steamId,
     accountName: signedIn.accountName,
   };
 }
 
-/** Logs on and reaches the GC, or throws. Leaves the connection open on success. */
-async function reachGc(): Promise<{ client: CmClient; gc: GcClient; steamId: string }> {
-  const client = new CmClient({ onLog: (message) => write(message, 'dim') });
+async function sync(): Promise<void> {
+  if (state.syncing) return;
+  state.syncing = true;
+  ($('sync') as HTMLButtonElement).disabled = true;
+  $('cancel').hidden = false;
+  log.clear();
 
-  await client.connect();
-  const { refreshToken, steamId, accountName } = await ensureSignedIn(client);
-
-  const logon = await client.logOnWithToken(refreshToken, steamId, await machineId());
-  // The persona name arrives separately and may not have landed yet, so fall
-  // back to the account name the sign-in gave us rather than to the SteamID,
-  // which is already shown underneath.
-  showAccount(logon.personaName || accountName || logon.steamId, logon.steamId);
-  write(`Logged on as ${logon.steamId}`, 'ok');
-  signOutButton.hidden = false;
-
-  const gc = new GcClient(client, { onLog: (message) => write(message, 'dim'), casketIdOf });
-  try {
-    await gc.connect();
-  } catch (error) {
-    client.disconnect();
-    throw error;
-  }
-  return { client, gc, steamId: logon.steamId };
-}
-
-async function run(): Promise<void> {
-  connectButton.disabled = true;
-  clearLog();
-  accountEl.replaceChildren();
+  const controller = new AbortController();
+  const onCancel = () => controller.abort();
+  $('cancel').addEventListener('click', onCancel, { once: true });
 
   let client: CmClient | null = null;
-  const controller = new AbortController();
-  cancelButton.hidden = false;
-  const onCancel = () => controller.abort();
-  cancelButton.addEventListener('click', onCancel, { once: true });
 
   try {
-    // Before anything else: without the previous index, every sync would diff
-    // against nothing and report the entire inventory as newly added.
-    await store.load();
+    status('Connecting to Steam...');
+    client = new CmClient({ onLog: (message) => write(message, 'dim') });
+    await client.connect();
 
-    const reached = await reachGc();
-    client = reached.client;
-    const { gc, steamId } = reached;
+    const { refreshToken, steamId, accountName } = await ensureSignedIn(client);
+    const logon = await client.logOnWithToken(refreshToken, steamId, await machineId());
+    showAccount(logon.personaName || accountName || logon.steamId);
+    $('signout').hidden = false;
 
-    write('Loading the item schema so names can be resolved...', 'dim');
+    status('Reaching the CS2 game coordinator...');
+    const gc = new GcClient(client, { onLog: (message) => write(message, 'dim'), casketIdOf });
+    await gc.connect();
+
+    status('Loading the item schema...');
     const catalog = await loadCatalog();
 
-    write('', '');
-    const startedAt = Date.now();
     const summary = await runSync({
       gc,
       store,
       catalog,
-      steamId,
+      steamId: logon.steamId,
       signal: controller.signal,
-      onProgress: (message) => write(message, message.startsWith('  ') ? 'dim' : ''),
+      onProgress: (message) => {
+        write(message, message.startsWith('  ') ? 'dim' : '');
+        if (!message.startsWith('  ')) status(message);
+      },
     });
 
-    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
-    write('', '');
-    write(
-      `Indexed ${summary.totalItems} items across ${summary.containers.length} storage units in ${seconds}s`,
-      'ok',
-    );
-    if (summary.added || summary.removed || summary.moved) {
-      write(
-        `${summary.added} added, ${summary.removed} removed, ${summary.moved} moved since last time`,
-        '',
-      );
-    }
-    if (summary.unresolved) {
-      write(`${summary.unresolved} items could not be named from the schema`, 'dim');
-    }
+    loadFacets();
+    render();
 
-    // A unit that failed is the one thing worth showing loudly: its contents
-    // are still in the index from last time, and saying nothing would let
-    // stale data pass for fresh.
+    const changes =
+      summary.added || summary.removed || summary.moved
+        ? ` — ${summary.added} added, ${summary.removed} removed, ${summary.moved} moved`
+        : '';
+
+    /*
+     * A failed unit is the one outcome worth interrupting for. Its contents
+     * are still in the index from last time, so the page looks complete when
+     * it is not, and silence would let stale data pass for fresh.
+     */
     if (summary.failedContainers) {
-      write('', '');
-      write(`${summary.failedContainers} storage units could not be read:`, 'bad');
+      status(
+        `${summary.failedContainers} storage unit${summary.failedContainers === 1 ? '' : 's'} could not be read. ` +
+          'Their previous contents were kept. Sync again to retry.',
+        'warn',
+      );
       for (const container of summary.containers.filter((c) => c.error !== null)) {
-        write(`  ${container.label}: ${container.error}`, 'dim');
+        write(`${container.label}: ${container.error}`, 'bad');
       }
-      write('Their previous contents were kept rather than reported as gone.', 'dim');
+    } else {
+      status(`Indexed ${summary.totalItems.toLocaleString()} items${changes}`, 'ok');
     }
-
-    showSummary();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    write('', '');
+    status(message, 'warn');
     write(message, 'bad');
   } finally {
-    cancelButton.removeEventListener('click', onCancel);
-    cancelButton.hidden = true;
+    $('cancel').removeEventListener('click', onCancel);
+    $('cancel').hidden = true;
     hideQr();
     client?.disconnect();
-    connectButton.disabled = false;
+    ($('sync') as HTMLButtonElement).disabled = false;
+    state.syncing = false;
   }
 }
 
-/** Lists the units with both counts, so a short read is visible at a glance. */
-function showSummary(): void {
-  write('', '');
-  for (const container of store.listContainers()) {
-    const short = container.storedCount < container.containedCount;
-    write(
-      `  ${container.label.padEnd(18)} ${String(container.storedCount).padStart(5)}` +
-        `${short ? ` of ${container.containedCount}` : ''}`,
-      short ? 'bad' : 'dim',
-    );
-  }
+function debounce<T extends unknown[]>(fn: (...args: T) => void, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: T) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
 
-  const stats = store.getStats();
-  write('', '');
-  write(
-    `${stats.totalItems} items indexed: ${stats.looseItems} loose, ${stats.storedItems} in units`,
-    'ok',
+function wireControls(): void {
+  const rerender = () => {
+    state.page = 0;
+    render();
+  };
+
+  $('q').addEventListener(
+    'input',
+    debounce((event: Event) => {
+      state.query = (event.target as HTMLInputElement).value.trim();
+      rerender();
+    }, 120),
   );
+
+  for (const tab of document.querySelectorAll<HTMLElement>('.tab')) {
+    tab.addEventListener('click', () => {
+      state.view = (tab.dataset.view ?? 'items') as typeof state.view;
+      state.page = 0;
+      syncTabs();
+      render();
+    });
+  }
+
+  const bind = (id: string, apply: (value: string) => void) => {
+    $(id).addEventListener('change', (event) => {
+      apply((event.target as HTMLSelectElement).value);
+      rerender();
+    });
+  };
+  bind('category', (value) => (state.category = value));
+  bind('rarity', (value) => (state.rarity = value));
+  bind('location', (value) => (state.location = value as typeof state.location));
+  bind('sort', (value) => (state.sort = value as typeof state.sort));
+
+  $('stattrak').addEventListener('change', (event) => {
+    state.stattrak = (event.target as HTMLInputElement).checked;
+    rerender();
+  });
+
+  $('prev').addEventListener('click', () => {
+    if (state.page > 0) {
+      state.page -= 1;
+      render();
+    }
+  });
+  $('next').addEventListener('click', () => {
+    state.page += 1;
+    render();
+  });
+
+  $('sync').addEventListener('click', () => void sync());
+
+  $('details').addEventListener('click', () => {
+    const pane = $('log');
+    pane.hidden = !pane.hidden;
+  });
+
+  $('signout').addEventListener('click', () => {
+    void forgetSession().then(() => {
+      $('signout').hidden = true;
+      showAccount('');
+      status('Sign-in forgotten. The next sync will show a new QR code.');
+    });
+  });
 }
 
-connectButton.addEventListener('click', () => void run());
+async function main(): Promise<void> {
+  wireControls();
+  await store.load();
+  loadFacets();
+  render();
 
-signOutButton.addEventListener('click', () => {
-  void forgetSession().then(() => {
-    signOutButton.hidden = true;
-    accountEl.replaceChildren();
-    write('Sign-in forgotten. The next read will show a new QR code.', 'dim');
-  });
-});
+  const saved = await loadSession();
+  if (saved) {
+    $('signout').hidden = false;
+    showAccount(saved.accountName);
+  }
 
-// Offer to forget a sign-in that is already saved, before any connection.
-void loadSession().then((saved) => {
-  if (saved) signOutButton.hidden = false;
-});
+  if (store.items.length === 0) {
+    status('Nothing indexed yet. Press "Sync" to read your inventory.');
+  }
+}
 
 // Leave no rule behind once the page goes away.
 window.addEventListener('pagehide', () => void removeOriginRule());
 
+void main();

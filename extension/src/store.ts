@@ -93,6 +93,8 @@ export interface Stats {
   totalItems: number;
   looseItems: number;
   storedItems: number;
+  /** How many different things are owned, as opposed to how many items. */
+  distinctNames: number;
   containers: number;
   unresolved: number;
   stattrak: number;
@@ -103,6 +105,8 @@ export interface Stats {
 export interface StackRow {
   marketHashName: string;
   count: number;
+  /** How many places these are spread across, which is the useful part. */
+  locations: number;
   category: string | null;
   rarityName: string | null;
   rarityColor: string | null;
@@ -324,6 +328,7 @@ export class Store {
       totalItems: live.length,
       looseItems: live.filter((item) => item.containerId === null).length,
       storedItems: live.filter((item) => item.containerId !== null).length,
+      distinctNames: new Set(live.map((item) => item.marketHashName)).size,
       containers: live.filter((item) => item.isContainer).length,
       unresolved: live.filter((item) => !item.resolved).length,
       stattrak: live.filter((item) => item.stattrak).length,
@@ -335,7 +340,13 @@ export class Store {
   /** The same items grouped by name, which is how a big inventory is read. */
   listStacks(options: SearchOptions = {}): { total: number; rows: StackRow[] } {
     const stacks = new Map<string, StackRow>();
+    const places = new Map<string, Set<string>>();
+
     for (const item of this.filter(options)) {
+      const where = places.get(item.marketHashName) ?? new Set<string>();
+      where.add(item.containerId ?? 'loose');
+      places.set(item.marketHashName, where);
+
       const existing = stacks.get(item.marketHashName);
       if (existing) {
         existing.count += 1;
@@ -344,12 +355,15 @@ export class Store {
       stacks.set(item.marketHashName, {
         marketHashName: item.marketHashName,
         count: 1,
+        locations: 0,
         category: item.category,
         rarityName: item.rarityName,
         rarityColor: item.rarityColor,
         imageUrl: item.imageUrl,
       });
     }
+
+    for (const [name, stack] of stacks) stack.locations = places.get(name)?.size ?? 0;
 
     const rows = [...stacks.values()].sort(
       (a, b) => b.count - a.count || a.marketHashName.localeCompare(b.marketHashName),

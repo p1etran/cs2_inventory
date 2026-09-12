@@ -4,60 +4,72 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CS2 Inventory</title>
-<style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 0 20px 40px;
-    background: #12141a; color: #e6e8ee;
-    font: 14px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
-  header { padding: 18px 0 14px; border-bottom: 1px solid #2c313d; margin-bottom: 18px; }
-  h1 { margin: 0 0 4px; font-size: 16px; letter-spacing: .02em; }
-  header p { margin: 0; color: #8d94a5; font-size: 13px; }
-  button {
-    padding: 8px 15px; border-radius: 8px; border: 1px solid #2c313d;
-    background: #21252f; color: #e6e8ee; cursor: pointer; font-size: 13px;
-  }
-  button:hover:not(:disabled) { border-color: #6fa8ff; }
-  button:disabled { opacity: .5; cursor: default; }
-  #account { margin: 16px 0; font-size: 15px; }
-  #account b { font-size: 20px; font-variant-numeric: tabular-nums; }
-  #signin { margin: 16px 0; }
-  #qr {
-    display: inline-block; padding: 10px; border-radius: 10px;
-    background: #fff; line-height: 0;
-  }
-  #qr svg { display: block; }
-  .steps { margin: 12px 0 0; padding-left: 20px; color: #8d94a5; font-size: 13px; }
-  .steps li { margin: 2px 0; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .note {
-    margin: 14px 0 0; padding: 10px 12px; border-radius: 8px;
-    border: 1px solid #2c313d; background: #1a1d26; color: #8d94a5; font-size: 12.5px;
-    max-width: 62ch;
-  }
-  #log {
-    margin: 14px 0 0; padding: 12px 14px; border: 1px solid #2c313d; border-radius: 8px;
-    background: #1a1d26; max-height: 460px; overflow-y: auto; white-space: pre-wrap;
-    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  .ok { color: #7bd88f; } .bad { color: #ff6b6b; } .dim { color: #8d94a5; }
-</style>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./extra.css">
 </head>
 <body>
-<header>
+<header class="topbar">
   <h1>CS2 Inventory</h1>
-  <p>Indexes everything you own in CS2, storage units included. No password, ever.</p>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search everything you own, storage units included" autocomplete="off" autofocus>
+  </div>
+  <span id="account" class="account"></span>
+  <button id="sync" class="btn">Sync</button>
+  <button id="cancel" class="btn btn-quiet" hidden>Stop</button>
 </header>
-<div class="row">
-  <button id="connect">Index my inventory</button>
-  <button id="cancel" hidden>Stop</button>
-  <button id="signout" hidden>Forget this sign-in</button>
+
+<div id="syncbar" class="syncbar" hidden>
+  <span id="syncmsg"></span>
+  <button id="details" class="linkish">details</button>
 </div>
-<div id="account"></div>
+
+<pre id="log" hidden></pre>
+
 <div id="signin" hidden></div>
-<pre id="log" class="dim">Press "Index my inventory".</pre>
+
+<section class="stats" id="stats"></section>
+
+<main>
+  <aside class="sidebar">
+    <h2>Storage units</h2>
+    <ul id="containers" class="containers"></ul>
+    <button id="signout" class="linkish" hidden>Forget this sign-in</button>
+  </aside>
+
+  <section class="content">
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab is-active" data-view="items">Items</button>
+        <button class="tab" data-view="stacks">Grouped</button>
+        <button class="tab" data-view="changes">Changes</button>
+      </div>
+      <div class="filters">
+        <select id="category"><option value="">All types</option></select>
+        <select id="rarity"><option value="">All rarities</option></select>
+        <select id="location">
+          <option value="all">Anywhere</option>
+          <option value="loose">Loose only</option>
+          <option value="stored">In units only</option>
+        </select>
+        <select id="sort">
+          <option value="name">Sort: name</option>
+          <option value="float">Sort: float</option>
+          <option value="recent">Sort: newest</option>
+        </select>
+        <label class="check"><input type="checkbox" id="stattrak"> StatTrak</label>
+      </div>
+    </div>
+
+    <div id="result-count" class="result-count"></div>
+    <div id="rows" class="rows"></div>
+    <div class="pager">
+      <button id="prev" class="btn btn-quiet">Previous</button>
+      <span id="page-label"></span>
+      <button id="next" class="btn btn-quiet">Next</button>
+    </div>
+  </section>
+</main>
+
 <script type="module" src="./app.js"></script>
 </body>
 </html>

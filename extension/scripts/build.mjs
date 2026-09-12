@@ -10,6 +10,7 @@ import { cpSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 
 const EXT = path.resolve(import.meta.dirname, '..');
+const REPO = path.resolve(EXT, '..');
 const DIST = path.join(EXT, 'dist');
 
 rmSync(DIST, { recursive: true, force: true });
@@ -34,6 +35,10 @@ const result = await build({
 
 cpSync(path.join(EXT, 'manifest.json'), path.join(DIST, 'manifest.json'));
 cpSync(path.join(EXT, 'src/app.html'), path.join(DIST, 'app.html'));
+cpSync(path.join(EXT, 'src/extra.css'), path.join(DIST, 'extra.css'));
+// Shared with the local server's UI rather than copied and edited, so the two
+// front ends cannot drift apart.
+cpSync(path.join(REPO, 'web/style.css'), path.join(DIST, 'style.css'));
 
 for (const [file, meta] of Object.entries(result.metafile.outputs)) {
   if (file.endsWith('.js')) {

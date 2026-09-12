@@ -19,9 +19,16 @@ the item counts and names. That comparison against the already-working Node
 path is the strongest correctness signal available, which is why the local app
 is worth keeping around during this work.
 
-Still to come: a UI over the index rather than a log of it, and a view of the
-public inventory before sign-in, so the extension shows something real before
-asking for anything.
+**And there is a UI over it.** Search, filter by type, rarity, location and
+StatTrak, group by name, and a change log. The page reads the local index, so
+it is useful the moment it opens and needs no connection to browse -- a sync is
+a thing you press, not a thing you wait for.
+
+Driven in Chromium against a seeded 15,608-item index: every interaction
+(search, tab switch, page, unit filter) renders in about 35 ms.
+
+Still to come: a view of the public inventory before sign-in, so the extension
+shows something real before asking for anything.
 
 ## Build and load
 
@@ -245,8 +252,15 @@ than a rewrite.
 
 The unit list shows both counts: what the game says a unit holds and what we
 actually hold for it. A gap means an interrupted read, and it is shown rather
-than smoothed over -- a short list that looks complete is the failure worth
-preventing.
+than smoothed over -- in the sidebar as `400/981` in amber, and in the sync bar
+as a warning rather than a success. A short list that looks complete is the one
+way this tool could quietly lie, so it is the thing most tests point at.
+
+The page shares `web/style.css` with the local server's UI rather than copying
+it, and `ui/render.ts` is a port of `web/app.js`'s row builders, so the two
+front ends cannot drift apart. Everything is built with `createElement` and
+`textContent`: an item's name tag is whatever a player typed, and it is never
+interpolated into markup.
 
 ```
 extension/
@@ -269,8 +283,11 @@ extension/
       emsg.ts         the message ids and result codes used
     store.ts        the index: query surface over an array, persisted as JSON
     sync.ts         reads the whole account, unit by unit
+    app.html, extra.css  the page; web/style.css is shared with the local UI
     ui/
+      log.ts          the progress pane, counting repeats rather than printing them
       qr.ts           draws the sign-in QR code as inline SVG
+      render.ts       rows, stats and the unit list, ported from web/app.js
 ```
 
 Item naming and inventory reconciliation are not duplicated here — they come
