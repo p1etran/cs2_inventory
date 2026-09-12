@@ -77,6 +77,13 @@ anything is encoded. `extension/scripts/gen-protos.mjs` therefore compiles a
 static module — plain encode/decode functions, no eval. This was found by
 loading the extension, not by reading about it.
 
+**A web-mode logon can play a game — measured.** This was open for two rounds.
+Steam confirms the game slot as app 730 for a session logged on with a web
+logon token, and the coordinator does reply. The pairing is mandatory in the
+other direction, though: the same token offered with a desktop OS type and no
+UI mode is refused with `InvalidPassword`. So the token and the web identity go
+together, and there is no desktop fallback worth spending a logon on.
+
 **Every message Steam sends is logged, by name.** Because Steam answers a
 message it does not recognise with silence rather than an error, a protocol
 mistake and a slow server are indistinguishable without it -- and `dispatch`
@@ -88,6 +95,20 @@ Steam also volunteers `ClientPlayingSessionState`, which says whether this
 session actually holds the account's single game slot. That one message is what
 separates "the coordinator is slow" from "we never went in-game", so the
 timeout now reports which of those happened instead of guessing.
+
+The same blind spot existed one level down, and cost a round: `GcClient` also
+dropped any coordinator message it had no handler for, and returned silently
+when an envelope's appid did not match. A reply did arrive and was discarded
+unseen. Coordinator messages are now traced by name too — from
+globaloffensive's own table, all 267 of them — and every discard says so.
+
+**The coordinator can queue you, and says so in a message that is not a
+welcome.** `CMsgConnectionStatus` carries a status plus `queue_position`,
+`queue_size` and an estimated wait. `NO_SESSION_IN_LOGON_QUEUE` is not the
+coordinator being down, so the wait now extends while it keeps reporting a
+position (capped at ten minutes), and a timeout while queued says so rather
+than suggesting the account might not own CS2. `ClientLogonFatalError` is the
+opposite case and fails immediately with the reason Valve gave.
 
 **Steam ignores a message it does not recognise.** There is no error, so a
 wrong message id shows up as silence. Games-played was being sent as EMsg 742

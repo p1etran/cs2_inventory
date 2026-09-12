@@ -1,12 +1,15 @@
 import type { CmClient } from './cm.js';
 import { EMsg } from './emsg.js';
 import { decodeNetMessage, encodeNetMessage, JOBID_NONE } from './frame.js';
+import gcNames from '../generated/gc-names.json';
 import {
   CMsgCasketItem,
   CMsgClientChangeStatus,
   CMsgClientGamesPlayed,
   CMsgClientHello,
   CMsgClientWelcome,
+  CMsgConnectionStatus,
+  CMsgGCCStrike15_v2_ClientLogonFatalError,
   CMsgGCClient,
   CMsgGCItemCustomizationNotification,
   CMsgSOCacheSubscribed,
@@ -43,7 +46,32 @@ export const GcMsg = {
   CasketItemLoadContents: 1094,
   ClientWelcome: 4004,
   ClientHello: 4006,
+  ClientConnectionStatus: 4009,
+  ClientLogonFatalError: 9187,
 } as const;
+
+/**
+ * Every game-coordinator message by name, generated from globaloffensive's
+ * table. As with the Steam side, the whole table ships: a coordinator that
+ * replies with something we have no handler for is exactly the case that needs
+ * to be readable, and it is by definition not one we handle.
+ */
+const GC_NAMES = gcNames as Record<string, string>;
+
+export function gcMsgName(gcMsg: number): string {
+  const name = GC_NAMES[String(gcMsg)];
+  return name ? `${name} (${gcMsg})` : `GC message ${gcMsg}`;
+}
+
+/** GCConnectionStatus, from gcsdk_gcmessages.proto. */
+const GC_STATUS: Record<number, string> = {
+  0: 'HAVE_SESSION',
+  1: 'GC_GOING_DOWN',
+  2: 'NO_SESSION',
+  3: 'NO_SESSION_IN_LOGON_QUEUE',
+  4: 'NO_STEAM',
+};
+const STATUS_IN_LOGON_QUEUE = 3;
 
 /** Shared-object type for an econ item. Everything else in the cache is ignored. */
 const SO_TYPE_ECON_ITEM = 1;
@@ -55,6 +83,8 @@ const NOTIFICATION_CASKET_CONTENTS = 1012;
 const DEF_STORAGE_UNIT = 1201;
 
 const WELCOME_TIMEOUT_MS = 60_000;
+/** However long the coordinator claims a queue will take, stop waiting here. */
+const QUEUE_WAIT_MAX_MS = 10 * 60_000;
 const CASKET_TIMEOUT_MS = 30_000;
 
 /**
@@ -112,6 +142,8 @@ export class GcClient {
   private readonly log: (message: string) => void;
   private readonly casketIdOf: (item: GcEconItem) => string | null;
   private welcomed = false;
+  /** The last connection status the GC reported, if it reported one. */
+  private status: { status: number; queuePosition: number; waitSeconds: number } | null = null;
 
   constructor(
     private readonly cm: CmClient,
@@ -125,10 +157,20 @@ export class GcClient {
         CMsgGCClient,
         message.body,
       );
-      if (envelope.appid !== CS2_APPID || !envelope.payload) return;
+      // Both of these used to return silently, which meant a reply from the
+      // coordinator could be discarded without a trace -- and one was.
+      if (envelope.appid !== CS2_APPID) {
+        this.log(`Ignored a GC message for app ${envelope.appid ?? 'unspecified'}`);
+        return;
+      }
+      if (!envelope.payload) {
+        this.log(`GC message ${envelope.msgtype ?? '?'} arrived with no payload`);
+        return;
+      }
       this.receive(envelope.payload);
     });
 
+    this.on(GcMsg.ClientConnectionStatus, (body) => this.onConnectionStatus(body));
     this.on(GcMsg.SO_CacheSubscribed, (body) => this.onCacheSubscribed(body));
     this.on(GcMsg.SO_Create, (body) => this.onSingleObject(body));
     this.on(GcMsg.SO_Update, (body) => this.onSingleObject(body));
@@ -162,11 +204,16 @@ export class GcClient {
       return;
     }
 
-    for (const handler of this.handlers.get(gcMsg) ?? []) {
+    const handlers = this.handlers.get(gcMsg) ?? [];
+    this.log(`<- GC ${gcMsgName(gcMsg)}${handlers.length === 0 ? ' (unhandled)' : ''}`);
+
+    for (const handler of handlers) {
       try {
         handler(body);
       } catch (error) {
-        this.log(`GC message ${gcMsg} failed: ${error instanceof Error ? error.message : error}`);
+        this.log(
+          `GC ${gcMsgName(gcMsg)} failed: ${error instanceof Error ? error.message : error}`,
+        );
       }
     }
   }
@@ -186,6 +233,52 @@ export class GcClient {
         payload,
       }),
       CS2_APPID,
+    );
+  }
+
+  /**
+   * Notes what the coordinator says about our session.
+   *
+   * It can refuse one outright or put it in a login queue with a wait time,
+   * and it reports that here rather than in a welcome. Discarding this message
+   * is why a queue looked exactly like the coordinator being down.
+   */
+  private onConnectionStatus(body: Uint8Array): void {
+    const decoded = decode<{
+      status?: number;
+      queue_position?: number;
+      queue_size?: number;
+      estimated_wait_seconds_remaining?: number;
+    }>(CMsgConnectionStatus, body);
+
+    const status = decoded.status ?? 0;
+    this.status = {
+      status,
+      queuePosition: decoded.queue_position ?? 0,
+      waitSeconds: decoded.estimated_wait_seconds_remaining ?? 0,
+    };
+
+    const name = GC_STATUS[status] ?? String(status);
+    if (status === STATUS_IN_LOGON_QUEUE) {
+      const size = decoded.queue_size ?? 0;
+      const wait = this.status.waitSeconds;
+      this.log(
+        `Game coordinator login queue: position ${this.status.queuePosition}` +
+          `${size ? ` of ${size}` : ''}${wait ? `, about ${wait}s remaining` : ''}`,
+      );
+      return;
+    }
+    this.log(`Game coordinator connection status: ${name}`);
+  }
+
+  /** A refusal with a reason, which is worth showing rather than swallowing. */
+  private onLogonFatalError(body: Uint8Array): GcError {
+    const decoded = decode<{ errorcode?: number; message?: string }>(
+      CMsgGCCStrike15_v2_ClientLogonFatalError,
+      body,
+    );
+    return new GcError(
+      `The CS2 game coordinator refused this session: ${decoded.message || `error ${decoded.errorcode ?? 0}`}`,
     );
   }
 
@@ -273,7 +366,26 @@ export class GcClient {
     });
 
     const welcome = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new GcError(this.describeSilence())), WELCOME_TIMEOUT_MS);
+      // Waiting in a queue is not the same as being ignored, so the deadline
+      // moves while the coordinator is still telling us where we are.
+      let timer = setTimeout(() => reject(new GcError(this.describeSilence())), WELCOME_TIMEOUT_MS);
+      const extend = (ms: number) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => reject(new GcError(this.describeSilence())), ms);
+      };
+
+      this.on(GcMsg.ClientConnectionStatus, () => {
+        if (this.welcomed || this.status?.status !== STATUS_IN_LOGON_QUEUE) return;
+        // Its own estimate plus a margin, so a long queue is waited out rather
+        // than reported as silence -- capped so a bad estimate cannot hang.
+        const wait = Math.min(QUEUE_WAIT_MAX_MS, (this.status.waitSeconds + 30) * 1000);
+        extend(Math.max(WELCOME_TIMEOUT_MS, wait));
+      });
+
+      this.on(GcMsg.ClientLogonFatalError, (body) => {
+        clearTimeout(timer);
+        reject(this.onLogonFatalError(body));
+      });
 
       const onWelcome = (body: Uint8Array): void => {
         if (this.welcomed) return;
@@ -328,6 +440,17 @@ export class GcClient {
    * is how two rounds of fixes went into the wrong place.
    */
   private describeSilence(): string {
+    if (this.status) {
+      const name = GC_STATUS[this.status.status] ?? String(this.status.status);
+      if (this.status.status === STATUS_IN_LOGON_QUEUE) {
+        return (
+          `Still in the CS2 game coordinator's login queue at position ${this.status.queuePosition}` +
+          ' after waiting. The coordinator is up; it is just busy. Try again shortly.'
+        );
+      }
+      return `The CS2 game coordinator reported ${name} and never sent a welcome.`;
+    }
+
     const playing = this.cm.playing;
     if (playing === null) {
       return (

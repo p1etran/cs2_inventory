@@ -1089,6 +1089,48 @@
         }
       }
     },
+    "CMsgConnectionStatus": {
+      "edition": "proto2",
+      "fields": {
+        "status": {
+          "type": ".GCConnectionStatus",
+          "id": 1,
+          "options": {
+            "default": "GCConnectionStatus_HAVE_SESSION"
+          }
+        },
+        "client_session_need": {
+          "type": "uint32",
+          "id": 2
+        },
+        "queue_position": {
+          "type": "int32",
+          "id": 3
+        },
+        "queue_size": {
+          "type": "int32",
+          "id": 4
+        },
+        "wait_seconds": {
+          "type": "int32",
+          "id": 5
+        },
+        "estimated_wait_seconds_remaining": {
+          "type": "int32",
+          "id": 6
+        }
+      }
+    },
+    "GCConnectionStatus": {
+      "edition": "proto2",
+      "values": {
+        "GCConnectionStatus_HAVE_SESSION": 0,
+        "GCConnectionStatus_GC_GOING_DOWN": 1,
+        "GCConnectionStatus_NO_SESSION": 2,
+        "GCConnectionStatus_NO_SESSION_IN_LOGON_QUEUE": 3,
+        "GCConnectionStatus_NO_STEAM": 4
+      }
+    },
     "CMsgSOSingleObject": {
       "edition": "proto2",
       "fields": {
@@ -1288,6 +1330,23 @@
         "request": {
           "type": "uint32",
           "id": 2
+        }
+      }
+    },
+    "CMsgGCCStrike15_v2_ClientLogonFatalError": {
+      "edition": "proto2",
+      "fields": {
+        "errorcode": {
+          "type": "uint32",
+          "id": 1
+        },
+        "message": {
+          "type": "string",
+          "id": 2
+        },
+        "country": {
+          "type": "string",
+          "id": 3
         }
       }
     }

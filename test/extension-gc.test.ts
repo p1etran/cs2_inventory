@@ -7,6 +7,8 @@ import {
   CMsgCasketItem,
   CMsgClientHello,
   CMsgClientWelcome,
+  CMsgConnectionStatus,
+  CMsgGCCStrike15_v2_ClientLogonFatalError,
   CMsgGCClient,
   CMsgGCItemCustomizationNotification,
   CMsgSOCacheSubscribed,
@@ -309,6 +311,123 @@ describe('shared object cache', () => {
       }),
     );
     expect(gc.items).toEqual([]);
+  });
+});
+
+describe('when the coordinator answers but does not welcome us', () => {
+  it('names a GC message nothing handles, instead of dropping it silently', () => {
+    const { cm, deliver } = fakeCm();
+    const logged: string[] = [];
+    const gc = new GcClient(cm, { casketIdOf, onLog: (m) => logged.push(m) });
+    void gc;
+
+    // 9139 is MatchList: real, unhandled, and the kind of reply that was
+    // being discarded without a trace. Named from the generated table rather
+    // than from our own GcMsg list, which is the whole point.
+    deliver(9139, new Uint8Array(0));
+    expect(logged).toContainEqual('<- GC MatchList (9139) (unhandled)');
+  });
+
+  it('says so when it discards a message for another app', () => {
+    const { cm, deliver } = fakeCm();
+    const logged: string[] = [];
+    const gc = new GcClient(cm, { casketIdOf, onLog: (m) => logged.push(m) });
+
+    deliver(GcMsg.SO_CacheSubscribed, cacheOf([econItem({ id: '1', def_index: 7 })]), 440);
+    expect(gc.items).toEqual([]);
+    // It used to return without a word, so a reply could vanish -- and did.
+    expect(logged.some((line) => /Ignored a GC message for app 440/.test(line))).toBe(true);
+  });
+
+  it('reports a login queue rather than calling it silence', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, deliver } = fakeCm();
+      const logged: string[] = [];
+      const gc = new GcClient(cm, { casketIdOf, onLog: (m) => logged.push(m) });
+      const connected = gc.connect();
+
+      deliver(
+        GcMsg.ClientConnectionStatus,
+        encode(CMsgConnectionStatus, {
+          status: 3,
+          queue_position: 412,
+          queue_size: 900,
+          estimated_wait_seconds_remaining: 120,
+        }),
+      );
+      expect(logged.some((line) => /login queue: position 412 of 900, about 120s/.test(line))).toBe(
+        true,
+      );
+
+      // A queue is not being ignored, so the original 60s deadline must not
+      // fire while the coordinator is still reporting our place in it.
+      await vi.advanceTimersByTimeAsync(61_000);
+      deliver(GcMsg.ClientWelcome, encode(CMsgClientWelcome, { version: 1 }));
+      await expect(connected).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('blames the queue, not the coordinator, if the queue outlasts the wait', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      const settled = gc.connect().catch((error: unknown) => error);
+
+      deliver(
+        GcMsg.ClientConnectionStatus,
+        encode(CMsgConnectionStatus, { status: 3, queue_position: 7 }),
+      );
+      await vi.advanceTimersByTimeAsync(11 * 60_000);
+
+      const message = ((await settled) as Error).message;
+      expect(message).toMatch(/login queue at position 7/);
+      expect(message).not.toMatch(/may not own/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('gives up immediately, with the reason, on an outright refusal', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      const settled = gc.connect().catch((error: unknown) => error);
+
+      deliver(
+        GcMsg.ClientLogonFatalError,
+        encode(CMsgGCCStrike15_v2_ClientLogonFatalError, {
+          errorcode: 7,
+          message: 'This account is permanently banned from Competitive',
+        }),
+      );
+
+      const error = (await settled) as Error;
+      expect(error).toBeInstanceOf(GcError);
+      expect(error.message).toContain('permanently banned');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a status that is not a queue by name', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, deliver } = fakeCm();
+      const gc = clientFor(cm);
+      const settled = gc.connect().catch((error: unknown) => error);
+
+      deliver(GcMsg.ClientConnectionStatus, encode(CMsgConnectionStatus, { status: 1 }));
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      expect(((await settled) as Error).message).toMatch(/GC_GOING_DOWN/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

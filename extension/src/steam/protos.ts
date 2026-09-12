@@ -20,6 +20,8 @@ export {
   CMsgCasketItem,
   CMsgClientHello,
   CMsgClientWelcome,
+  CMsgConnectionStatus,
+  CMsgGCCStrike15_v2_ClientLogonFatalError,
   CMsgGCItemCustomizationNotification,
   CMsgSOCacheSubscribed,
   CMsgSOMultipleObjects,

@@ -21,6 +21,8 @@ export const CMsgClientLogon: StaticMessageType;
 export const CMsgClientLogonResponse: StaticMessageType;
 export const CMsgClientPlayingSessionState: StaticMessageType;
 export const CMsgClientWelcome: StaticMessageType;
+export const CMsgConnectionStatus: StaticMessageType;
+export const CMsgGCCStrike15_v2_ClientLogonFatalError: StaticMessageType;
 export const CMsgGCClient: StaticMessageType;
 export const CMsgGCItemCustomizationNotification: StaticMessageType;
 export const CMsgMulti: StaticMessageType;

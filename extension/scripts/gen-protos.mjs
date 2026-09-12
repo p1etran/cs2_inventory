@@ -25,6 +25,7 @@ const REPO = path.resolve(import.meta.dirname, '../..');
 const DESCRIPTOR = path.join(REPO, 'extension/src/generated/protos.json');
 const STATIC_MODULE = path.join(REPO, 'extension/src/generated/protos.js');
 const EMSG_NAMES = path.join(REPO, 'extension/src/generated/emsg-names.json');
+const GC_NAMES = path.join(REPO, 'extension/src/generated/gc-names.json');
 
 /** Every message the extension encodes or decodes, by source file. */
 const SOURCES = [
@@ -62,6 +63,10 @@ const SOURCES = [
     messages: [
       'CMsgClientHello',
       'CMsgClientWelcome',
+      // Why the coordinator is not answering: it can refuse a session, or put
+      // one in a login queue with a wait time, and saying nothing about either
+      // is indistinguishable from it being down.
+      'CMsgConnectionStatus',
       // The shared-object cache: how the GC hands over the inventory
       'CMsgSOCacheSubscribed',
       'CMsgSOSingleObject',
@@ -76,6 +81,11 @@ const SOURCES = [
   {
     file: 'node_modules/globaloffensive/protobufs/econ_gcmessages.proto',
     messages: ['CMsgCasketItem', 'CMsgGCItemCustomizationNotification'],
+  },
+  {
+    file: 'node_modules/globaloffensive/protobufs/cstrike15_gcmessages.proto',
+    // An outright refusal, with a reason worth showing rather than swallowing
+    messages: ['CMsgGCCStrike15_v2_ClientLogonFatalError'],
   },
 ];
 
@@ -202,6 +212,22 @@ console.log(
   `${Object.keys(emsgNames).length} EMsg names -> emsg-names.json` +
     ` (${(JSON.stringify(emsgNames).length / 1024).toFixed(1)} kB)`,
 );
+
+/**
+ * The game coordinator's own message names, from globaloffensive's table.
+ *
+ * Same reasoning as the EMsg table: a coordinator that answers with a message
+ * we have no handler for is the case that most needs to be legible, and it is
+ * by definition not in the list we handle.
+ */
+const gcNames = Object.fromEntries(
+  Object.entries(require('globaloffensive/language.js'))
+    .filter(([, value]) => typeof value === 'number')
+    .map(([name, value]) => [value, name])
+    .sort(([a], [b]) => Number(a) - Number(b)),
+);
+writeFileSync(GC_NAMES, `${JSON.stringify(gcNames, null, 1)}\n`);
+console.log(`${Object.keys(gcNames).length} GC message names -> gc-names.json`);
 
 /**
  * Compile the descriptor into a static module.

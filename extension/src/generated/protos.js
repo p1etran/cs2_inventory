@@ -5779,6 +5779,214 @@ export const CMsgSOCacheSubscriptionCheck = $root.CMsgSOCacheSubscriptionCheck =
     return CMsgSOCacheSubscriptionCheck;
 })();
 
+export const CMsgConnectionStatus = $root.CMsgConnectionStatus = (() => {
+
+    function CMsgConnectionStatus(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgConnectionStatus.prototype.status = 0;
+    CMsgConnectionStatus.prototype.client_session_need = 0;
+    CMsgConnectionStatus.prototype.queue_position = 0;
+    CMsgConnectionStatus.prototype.queue_size = 0;
+    CMsgConnectionStatus.prototype.wait_seconds = 0;
+    CMsgConnectionStatus.prototype.estimated_wait_seconds_remaining = 0;
+
+    CMsgConnectionStatus.create = function create(properties) {
+        return new CMsgConnectionStatus(properties);
+    };
+
+    CMsgConnectionStatus.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.status != null && Object.hasOwnProperty.call(message, "status"))
+            writer.uint32(8).int32(message.status);
+        if (message.client_session_need != null && Object.hasOwnProperty.call(message, "client_session_need"))
+            writer.uint32(16).uint32(message.client_session_need);
+        if (message.queue_position != null && Object.hasOwnProperty.call(message, "queue_position"))
+            writer.uint32(24).int32(message.queue_position);
+        if (message.queue_size != null && Object.hasOwnProperty.call(message, "queue_size"))
+            writer.uint32(32).int32(message.queue_size);
+        if (message.wait_seconds != null && Object.hasOwnProperty.call(message, "wait_seconds"))
+            writer.uint32(40).int32(message.wait_seconds);
+        if (message.estimated_wait_seconds_remaining != null && Object.hasOwnProperty.call(message, "estimated_wait_seconds_remaining"))
+            writer.uint32(48).int32(message.estimated_wait_seconds_remaining);
+        return writer;
+    };
+
+    CMsgConnectionStatus.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgConnectionStatus();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.status = reader.int32();
+                    break;
+                }
+            case 2: {
+                    message.client_session_need = reader.uint32();
+                    break;
+                }
+            case 3: {
+                    message.queue_position = reader.int32();
+                    break;
+                }
+            case 4: {
+                    message.queue_size = reader.int32();
+                    break;
+                }
+            case 5: {
+                    message.wait_seconds = reader.int32();
+                    break;
+                }
+            case 6: {
+                    message.estimated_wait_seconds_remaining = reader.int32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgConnectionStatus.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgConnectionStatus)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgConnectionStatus: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgConnectionStatus();
+        switch (object.status) {
+        default:
+            if (typeof object.status === "number") {
+                message.status = object.status;
+                break;
+            }
+            break;
+        case "GCConnectionStatus_HAVE_SESSION":
+        case 0:
+            message.status = 0;
+            break;
+        case "GCConnectionStatus_GC_GOING_DOWN":
+        case 1:
+            message.status = 1;
+            break;
+        case "GCConnectionStatus_NO_SESSION":
+        case 2:
+            message.status = 2;
+            break;
+        case "GCConnectionStatus_NO_SESSION_IN_LOGON_QUEUE":
+        case 3:
+            message.status = 3;
+            break;
+        case "GCConnectionStatus_NO_STEAM":
+        case 4:
+            message.status = 4;
+            break;
+        }
+        if (object.client_session_need != null)
+            message.client_session_need = object.client_session_need >>> 0;
+        if (object.queue_position != null)
+            message.queue_position = object.queue_position | 0;
+        if (object.queue_size != null)
+            message.queue_size = object.queue_size | 0;
+        if (object.wait_seconds != null)
+            message.wait_seconds = object.wait_seconds | 0;
+        if (object.estimated_wait_seconds_remaining != null)
+            message.estimated_wait_seconds_remaining = object.estimated_wait_seconds_remaining | 0;
+        return message;
+    };
+
+    CMsgConnectionStatus.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.status = options.enums === String ? "GCConnectionStatus_HAVE_SESSION" : 0;
+            object.client_session_need = 0;
+            object.queue_position = 0;
+            object.queue_size = 0;
+            object.wait_seconds = 0;
+            object.estimated_wait_seconds_remaining = 0;
+        }
+        if (message.status != null && Object.hasOwnProperty.call(message, "status"))
+            object.status = options.enums === String ? $root.GCConnectionStatus[message.status] === undefined ? message.status : $root.GCConnectionStatus[message.status] : message.status;
+        if (message.client_session_need != null && Object.hasOwnProperty.call(message, "client_session_need"))
+            object.client_session_need = message.client_session_need;
+        if (message.queue_position != null && Object.hasOwnProperty.call(message, "queue_position"))
+            object.queue_position = message.queue_position;
+        if (message.queue_size != null && Object.hasOwnProperty.call(message, "queue_size"))
+            object.queue_size = message.queue_size;
+        if (message.wait_seconds != null && Object.hasOwnProperty.call(message, "wait_seconds"))
+            object.wait_seconds = message.wait_seconds;
+        if (message.estimated_wait_seconds_remaining != null && Object.hasOwnProperty.call(message, "estimated_wait_seconds_remaining"))
+            object.estimated_wait_seconds_remaining = message.estimated_wait_seconds_remaining;
+        return object;
+    };
+
+    CMsgConnectionStatus.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgConnectionStatus.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgConnectionStatus";
+    };
+
+    return CMsgConnectionStatus;
+})();
+
+export const GCConnectionStatus = $root.GCConnectionStatus = (() => {
+    const valuesById = {}, values = Object.create(valuesById);
+    values[valuesById[0] = "GCConnectionStatus_HAVE_SESSION"] = 0;
+    values[valuesById[1] = "GCConnectionStatus_GC_GOING_DOWN"] = 1;
+    values[valuesById[2] = "GCConnectionStatus_NO_SESSION"] = 2;
+    values[valuesById[3] = "GCConnectionStatus_NO_SESSION_IN_LOGON_QUEUE"] = 3;
+    values[valuesById[4] = "GCConnectionStatus_NO_STEAM"] = 4;
+    return values;
+})();
+
 export const CMsgSOSingleObject = $root.CMsgSOSingleObject = (() => {
 
     function CMsgSOSingleObject(properties) {
@@ -7224,6 +7432,142 @@ export const CMsgGCItemCustomizationNotification = $root.CMsgGCItemCustomization
     };
 
     return CMsgGCItemCustomizationNotification;
+})();
+
+export const CMsgGCCStrike15_v2_ClientLogonFatalError = $root.CMsgGCCStrike15_v2_ClientLogonFatalError = (() => {
+
+    function CMsgGCCStrike15_v2_ClientLogonFatalError(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.prototype.errorcode = 0;
+    CMsgGCCStrike15_v2_ClientLogonFatalError.prototype.message = "";
+    CMsgGCCStrike15_v2_ClientLogonFatalError.prototype.country = "";
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.create = function create(properties) {
+        return new CMsgGCCStrike15_v2_ClientLogonFatalError(properties);
+    };
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.errorcode != null && Object.hasOwnProperty.call(message, "errorcode"))
+            writer.uint32(8).uint32(message.errorcode);
+        if (message.message != null && Object.hasOwnProperty.call(message, "message"))
+            writer.uint32(18).string(message.message);
+        if (message.country != null && Object.hasOwnProperty.call(message, "country"))
+            writer.uint32(26).string(message.country);
+        return writer;
+    };
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgGCCStrike15_v2_ClientLogonFatalError();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.errorcode = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    message.message = reader.string();
+                    break;
+                }
+            case 3: {
+                    message.country = reader.string();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgGCCStrike15_v2_ClientLogonFatalError)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgGCCStrike15_v2_ClientLogonFatalError: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgGCCStrike15_v2_ClientLogonFatalError();
+        if (object.errorcode != null)
+            message.errorcode = object.errorcode >>> 0;
+        if (object.message != null)
+            message.message = String(object.message);
+        if (object.country != null)
+            message.country = String(object.country);
+        return message;
+    };
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.errorcode = 0;
+            object.message = "";
+            object.country = "";
+        }
+        if (message.errorcode != null && Object.hasOwnProperty.call(message, "errorcode"))
+            object.errorcode = message.errorcode;
+        if (message.message != null && Object.hasOwnProperty.call(message, "message"))
+            object.message = message.message;
+        if (message.country != null && Object.hasOwnProperty.call(message, "country"))
+            object.country = message.country;
+        return object;
+    };
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgGCCStrike15_v2_ClientLogonFatalError.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgGCCStrike15_v2_ClientLogonFatalError";
+    };
+
+    return CMsgGCCStrike15_v2_ClientLogonFatalError;
 })();
 
 export { $root as default };
