@@ -24,7 +24,8 @@
     "sync": "node dist/cli.js sync",
     "serve": "node dist/cli.js serve",
     "protos": "node extension/scripts/gen-protos.mjs",
-    "build:extension": "node extension/scripts/build.mjs"
+    "build:extension": "node extension/scripts/build.mjs",
+    "pack:extension": "node extension/scripts/pack.mjs"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

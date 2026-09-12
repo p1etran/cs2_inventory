@@ -47,6 +47,24 @@ Then in Chrome: `chrome://extensions` → **Developer mode** → **Load unpacked
 Run `npm run protos` only after a Steam protocol change; the generated files
 are committed so a normal build does not need it.
 
+## Packaging for the store
+
+```bash
+npm run pack:extension
+```
+
+Builds, checks, and writes `extension/build/cs2-inventory-<version>.zip`.
+
+The checks are the ones a store submission fails on and a local load does not:
+a manifest naming a file that is not in the package, a missing icon size, or a
+permission nothing in the source uses. Each costs a review cycle to discover by
+upload, and a review cycle is measured in days.
+
+`extension/STORE.md` holds the listing copy, the per-permission
+justifications the store asks for, and the privacy policy -- in the repository
+so they can be reviewed like anything else, and so every factual claim in the
+listing is checkable against the source in the same commit.
+
 ## How it works, and the things that are not obvious
 
 **Signing in: a QR code, never a password.** The page shows a code, you scan it

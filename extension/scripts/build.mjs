@@ -39,6 +39,7 @@ cpSync(path.join(EXT, 'src/extra.css'), path.join(DIST, 'extra.css'));
 // Shared with the local server's UI rather than copied and edited, so the two
 // front ends cannot drift apart.
 cpSync(path.join(REPO, 'web/style.css'), path.join(DIST, 'style.css'));
+cpSync(path.join(EXT, 'icons'), path.join(DIST, 'icons'), { recursive: true });
 
 for (const [file, meta] of Object.entries(result.metafile.outputs)) {
   if (file.endsWith('.js')) {
