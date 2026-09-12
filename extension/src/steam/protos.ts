@@ -5,8 +5,11 @@ import type { StaticMessageType } from '../generated/protos.js';
 export {
   // Steam transport and logon
   CMsgClientAccountInfo,
+  CMsgClientChangeStatus,
   CMsgClientGamesPlayed,
   CMsgClientHeartBeat,
+  CMsgClientKickPlayingSession,
+  CMsgClientPlayingSessionState,
   CMsgClientLoggedOff,
   CMsgClientLogon,
   CMsgClientLogonResponse,

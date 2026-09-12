@@ -1,5 +1,11 @@
 import { Catalog, normalizeEconItem, readCasketId, type CatalogIndex } from '../../src/core.js';
-import { CmClient, removeOriginRule } from './steam/cm.js';
+import {
+  CLIENT_OS_WEB,
+  CLIENT_OS_WINDOWS,
+  CmClient,
+  UI_MODE_WEB,
+  removeOriginRule,
+} from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
 import { NoSteamSessionError, readSteamSession } from './steam/session.js';
 
@@ -69,26 +75,82 @@ function describeUnit(item: GcEconItem, catalog: Catalog): string {
   return `${label} (${resolved.containedCount ?? 0} items, id ${resolved.assetId})`;
 }
 
+/**
+ * How the logon identifies this client.
+ *
+ * Steam may not grant a game slot to a session that calls itself a web
+ * client, and nothing outside Steam can settle that. So both are tried in one
+ * run: the web identity steam-user uses for a web logon token, then a desktop
+ * one. A refusal of the second is just as informative as it working.
+ */
+const IDENTITIES = [
+  { name: 'web client', clientOsType: CLIENT_OS_WEB, uiMode: UI_MODE_WEB },
+  { name: 'desktop client', clientOsType: CLIENT_OS_WINDOWS, uiMode: undefined },
+];
+
+/** Logs on and reaches the GC, or throws. Leaves the connection open on success. */
+async function reachGc(
+  session: Awaited<ReturnType<typeof readSteamSession>>,
+  identity: (typeof IDENTITIES)[number],
+): Promise<{ client: CmClient; gc: GcClient }> {
+  const client = new CmClient({
+    onLog: (message) => write(message, 'dim'),
+    clientIdentity: { clientOsType: identity.clientOsType, uiMode: identity.uiMode },
+  });
+
+  await client.connect();
+  const logon = await client.logOn(session);
+  showAccount(session.accountName || logon.steamId, logon.steamId);
+  write(`Logged on as ${logon.steamId}`, 'ok');
+
+  const gc = new GcClient(client, { onLog: (message) => write(message, 'dim'), casketIdOf });
+  try {
+    await gc.connect();
+  } catch (error) {
+    client.disconnect();
+    throw error;
+  }
+  return { client, gc };
+}
+
 async function run(): Promise<void> {
   connectButton.disabled = true;
   logEl.textContent = '';
   logEl.className = '';
   accountEl.replaceChildren();
 
-  const client = new CmClient({ onLog: (message) => write(message, 'dim') });
+  let client: CmClient | null = null;
 
   try {
     const session = await readSteamSession();
     write(`Exchanged this browser's Steam session for a logon token`, 'ok');
     write('No password, no Steam Guard code, and no cookie was read.', 'dim');
 
-    await client.connect();
-    const logon = await client.logOn(session);
-    showAccount(session.accountName || logon.steamId, logon.steamId);
-    write(`Logged on as ${logon.steamId}`, 'ok');
+    let reached: { client: CmClient; gc: GcClient } | null = null;
+    const failures: string[] = [];
 
-    const gc = new GcClient(client, { onLog: (message) => write(message, 'dim'), casketIdOf });
-    await gc.connect();
+    for (const [index, identity] of IDENTITIES.entries()) {
+      write('', '');
+      write(`Attempt ${index + 1} of ${IDENTITIES.length}: logging on as a ${identity.name}`, '');
+      try {
+        reached = await reachGc(session, identity);
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        failures.push(`as a ${identity.name}: ${message}`);
+        write(message, 'bad');
+      }
+    }
+
+    if (!reached) {
+      write('', '');
+      write('Both attempts failed:', 'bad');
+      for (const failure of failures) write(`  ${failure}`, 'dim');
+      return;
+    }
+
+    client = reached.client;
+    const { gc } = reached;
 
     const units = gc.storageUnits;
     write('', '');
@@ -150,6 +212,7 @@ async function run(): Promise<void> {
       write('Open steamcommunity.com, sign in, then try again.', 'dim');
     }
   } finally {
+    client?.disconnect();
     connectButton.disabled = false;
   }
 }

@@ -77,6 +77,18 @@ anything is encoded. `extension/scripts/gen-protos.mjs` therefore compiles a
 static module — plain encode/decode functions, no eval. This was found by
 loading the extension, not by reading about it.
 
+**Every message Steam sends is logged, by name.** Because Steam answers a
+message it does not recognise with silence rather than an error, a protocol
+mistake and a slow server are indistinguishable without it -- and `dispatch`
+used to drop anything it had no handler for without a word. The name table is
+generated from steam-user's enum (all ~1900 ids, ~60 kB) rather than the nine
+we handle, since an unexpected message is by definition not one of those.
+
+Steam also volunteers `ClientPlayingSessionState`, which says whether this
+session actually holds the account's single game slot. That one message is what
+separates "the coordinator is slow" from "we never went in-game", so the
+timeout now reports which of those happened instead of guessing.
+
 **Steam ignores a message it does not recognise.** There is no error, so a
 wrong message id shows up as silence. Games-played was being sent as EMsg 742
 (`ClientGamesPlayed`), which Steam no longer acts on: the account stayed not

@@ -815,6 +815,68 @@
         }
       }
     },
+    "CMsgClientChangeStatus": {
+      "edition": "proto2",
+      "fields": {
+        "persona_state": {
+          "type": "uint32",
+          "id": 1
+        },
+        "player_name": {
+          "type": "string",
+          "id": 2
+        },
+        "is_auto_generated_name": {
+          "type": "bool",
+          "id": 3
+        },
+        "high_priority": {
+          "type": "bool",
+          "id": 4
+        },
+        "persona_set_by_user": {
+          "type": "bool",
+          "id": 5
+        },
+        "persona_state_flags": {
+          "type": "uint32",
+          "id": 6,
+          "options": {
+            "default": 0
+          }
+        },
+        "need_persona_response": {
+          "type": "bool",
+          "id": 7
+        },
+        "is_client_idle": {
+          "type": "bool",
+          "id": 8
+        }
+      }
+    },
+    "CMsgClientPlayingSessionState": {
+      "edition": "proto2",
+      "fields": {
+        "playing_blocked": {
+          "type": "bool",
+          "id": 2
+        },
+        "playing_app": {
+          "type": "uint32",
+          "id": 3
+        }
+      }
+    },
+    "CMsgClientKickPlayingSession": {
+      "edition": "proto2",
+      "fields": {
+        "only_stop_game": {
+          "type": "bool",
+          "id": 1
+        }
+      }
+    },
     "CMsgGCClient": {
       "edition": "proto2",
       "fields": {

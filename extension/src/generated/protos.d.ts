@@ -11,12 +11,15 @@ export interface StaticMessageType {
 
 export const CMsgCasketItem: StaticMessageType;
 export const CMsgClientAccountInfo: StaticMessageType;
+export const CMsgClientChangeStatus: StaticMessageType;
 export const CMsgClientGamesPlayed: StaticMessageType;
 export const CMsgClientHeartBeat: StaticMessageType;
 export const CMsgClientHello: StaticMessageType;
+export const CMsgClientKickPlayingSession: StaticMessageType;
 export const CMsgClientLoggedOff: StaticMessageType;
 export const CMsgClientLogon: StaticMessageType;
 export const CMsgClientLogonResponse: StaticMessageType;
+export const CMsgClientPlayingSessionState: StaticMessageType;
 export const CMsgClientWelcome: StaticMessageType;
 export const CMsgGCClient: StaticMessageType;
 export const CMsgGCItemCustomizationNotification: StaticMessageType;

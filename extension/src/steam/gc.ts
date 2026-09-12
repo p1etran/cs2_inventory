@@ -1,8 +1,9 @@
 import type { CmClient } from './cm.js';
 import { EMsg } from './emsg.js';
-import { decodeNetMessage, encodeNetMessage } from './frame.js';
+import { decodeNetMessage, encodeNetMessage, JOBID_NONE } from './frame.js';
 import {
   CMsgCasketItem,
+  CMsgClientChangeStatus,
   CMsgClientGamesPlayed,
   CMsgClientHello,
   CMsgClientWelcome,
@@ -63,6 +64,9 @@ const CASKET_TIMEOUT_MS = 30_000;
  * a version and simply does not reply without one.
  */
 const HELLO = { version: 2000244, client_session_need: 0, client_launcher: 0, steam_launcher: 0 };
+
+/** Persona state 1 is Online. A fresh session is Offline until told. */
+const PERSONA_ONLINE = 1;
 
 /** First hello, after Steam has had a moment to register the game session. */
 const HELLO_DELAY_MS = 500;
@@ -170,7 +174,10 @@ export class GcClient {
   private sendToGc(gcMsg: number, body: Uint8Array = new Uint8Array(0)): void {
     // The envelope's msgtype carries the protobuf flag, and the payload
     // repeats it in its own header. Both are what the CM expects.
-    const payload = encodeNetMessage(gcMsg, {}, body);
+    // jobid_source explicitly, as steam-user does, rather than relying on the
+    // proto default -- the generated descriptor drops 64-bit defaults because
+    // they do not survive a JS number.
+    const payload = encodeNetMessage(gcMsg, { jobid_source: JOBID_NONE }, body);
     this.cm.send(
       EMsg.ClientToGC,
       encode(CMsgGCClient, {
@@ -236,22 +243,37 @@ export class GcClient {
    * enough.
    */
   async connect(): Promise<void> {
+    // Online first. A session is Offline until it says otherwise, and the Node
+    // client goes Online before reporting a game, so match it rather than
+    // differ for no reason.
+    this.cm.send(
+      EMsg.ClientChangeStatus,
+      encode(CMsgClientChangeStatus, { persona_state: PERSONA_ONLINE }),
+    );
+
     this.cm.send(
       EMsg.ClientGamesPlayedWithDataBlob,
       encode(CMsgClientGamesPlayed, { games_played: [{ game_id: String(CS2_APPID) }] }),
     );
     this.log('Reported CS2 as running');
 
-    const welcome = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(
-        () =>
-          reject(
-            new GcError(
-              'The CS2 game coordinator never sent a welcome. It may be down, or the account may not own CS2.',
-            ),
+    // Steam volunteers this rather than answering a request, and it is the one
+    // thing that separates a slow coordinator from never having been in-game.
+    const blocked = new Promise<never>((_resolve, reject) => {
+      this.cm.onPlayingState((state) => {
+        if (!state.blocked) return;
+        reject(
+          new GcError(
+            'Another session is using this account to play' +
+              `${state.playingApp ? ` app ${state.playingApp}` : ''}. ` +
+              'Close CS2 (or quit Steam) on that machine and try again.',
           ),
-        WELCOME_TIMEOUT_MS,
-      );
+        );
+      });
+    });
+
+    const welcome = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new GcError(this.describeSilence())), WELCOME_TIMEOUT_MS);
 
       const onWelcome = (body: Uint8Array): void => {
         if (this.welcomed) return;
@@ -292,10 +314,38 @@ export class GcClient {
     timer = setTimeout(sendHello, HELLO_DELAY_MS);
 
     try {
-      await welcome;
+      await Promise.race([welcome, blocked]);
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  /**
+   * Explains a coordinator that never answered, in terms of what Steam said.
+   *
+   * Whether Steam confirmed the game slot is the useful distinction, and
+   * guessing at "it may be down or you may not own CS2" when that is knowable
+   * is how two rounds of fixes went into the wrong place.
+   */
+  private describeSilence(): string {
+    const playing = this.cm.playing;
+    if (playing === null) {
+      return (
+        'The CS2 game coordinator never answered, and Steam never confirmed the game slot either' +
+        ' -- no playing-session state arrived at all. That points at this session not being' +
+        ' allowed to play a game, rather than at the coordinator.'
+      );
+    }
+    if (playing.playingApp !== CS2_APPID) {
+      return (
+        `Steam reports this session is playing app ${playing.playingApp || 'nothing'}, not ${CS2_APPID},` +
+        ' so the coordinator has no reason to answer. Games-played did not take effect.'
+      );
+    }
+    return (
+      `Steam confirms this session is playing ${CS2_APPID}, but the coordinator did not answer` +
+      ' within a minute. It may genuinely be down, or the account may not own CS2.'
+    );
   }
 
   /** Every item the GC has told us about, in arrival order. */

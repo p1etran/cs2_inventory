@@ -3770,6 +3770,437 @@ export const CMsgClientGamesPlayed_GamePlayed = $root.CMsgClientGamesPlayed_Game
     return CMsgClientGamesPlayed_GamePlayed;
 })();
 
+export const CMsgClientChangeStatus = $root.CMsgClientChangeStatus = (() => {
+
+    function CMsgClientChangeStatus(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgClientChangeStatus.prototype.persona_state = 0;
+    CMsgClientChangeStatus.prototype.player_name = "";
+    CMsgClientChangeStatus.prototype.is_auto_generated_name = false;
+    CMsgClientChangeStatus.prototype.high_priority = false;
+    CMsgClientChangeStatus.prototype.persona_set_by_user = false;
+    CMsgClientChangeStatus.prototype.persona_state_flags = 0;
+    CMsgClientChangeStatus.prototype.need_persona_response = false;
+    CMsgClientChangeStatus.prototype.is_client_idle = false;
+
+    CMsgClientChangeStatus.create = function create(properties) {
+        return new CMsgClientChangeStatus(properties);
+    };
+
+    CMsgClientChangeStatus.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.persona_state != null && Object.hasOwnProperty.call(message, "persona_state"))
+            writer.uint32(8).uint32(message.persona_state);
+        if (message.player_name != null && Object.hasOwnProperty.call(message, "player_name"))
+            writer.uint32(18).string(message.player_name);
+        if (message.is_auto_generated_name != null && Object.hasOwnProperty.call(message, "is_auto_generated_name"))
+            writer.uint32(24).bool(message.is_auto_generated_name);
+        if (message.high_priority != null && Object.hasOwnProperty.call(message, "high_priority"))
+            writer.uint32(32).bool(message.high_priority);
+        if (message.persona_set_by_user != null && Object.hasOwnProperty.call(message, "persona_set_by_user"))
+            writer.uint32(40).bool(message.persona_set_by_user);
+        if (message.persona_state_flags != null && Object.hasOwnProperty.call(message, "persona_state_flags"))
+            writer.uint32(48).uint32(message.persona_state_flags);
+        if (message.need_persona_response != null && Object.hasOwnProperty.call(message, "need_persona_response"))
+            writer.uint32(56).bool(message.need_persona_response);
+        if (message.is_client_idle != null && Object.hasOwnProperty.call(message, "is_client_idle"))
+            writer.uint32(64).bool(message.is_client_idle);
+        return writer;
+    };
+
+    CMsgClientChangeStatus.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgClientChangeStatus();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.persona_state = reader.uint32();
+                    break;
+                }
+            case 2: {
+                    message.player_name = reader.string();
+                    break;
+                }
+            case 3: {
+                    message.is_auto_generated_name = reader.bool();
+                    break;
+                }
+            case 4: {
+                    message.high_priority = reader.bool();
+                    break;
+                }
+            case 5: {
+                    message.persona_set_by_user = reader.bool();
+                    break;
+                }
+            case 6: {
+                    message.persona_state_flags = reader.uint32();
+                    break;
+                }
+            case 7: {
+                    message.need_persona_response = reader.bool();
+                    break;
+                }
+            case 8: {
+                    message.is_client_idle = reader.bool();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgClientChangeStatus.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgClientChangeStatus)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgClientChangeStatus: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgClientChangeStatus();
+        if (object.persona_state != null)
+            message.persona_state = object.persona_state >>> 0;
+        if (object.player_name != null)
+            message.player_name = String(object.player_name);
+        if (object.is_auto_generated_name != null)
+            message.is_auto_generated_name = Boolean(object.is_auto_generated_name);
+        if (object.high_priority != null)
+            message.high_priority = Boolean(object.high_priority);
+        if (object.persona_set_by_user != null)
+            message.persona_set_by_user = Boolean(object.persona_set_by_user);
+        if (object.persona_state_flags != null)
+            message.persona_state_flags = object.persona_state_flags >>> 0;
+        if (object.need_persona_response != null)
+            message.need_persona_response = Boolean(object.need_persona_response);
+        if (object.is_client_idle != null)
+            message.is_client_idle = Boolean(object.is_client_idle);
+        return message;
+    };
+
+    CMsgClientChangeStatus.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.persona_state = 0;
+            object.player_name = "";
+            object.is_auto_generated_name = false;
+            object.high_priority = false;
+            object.persona_set_by_user = false;
+            object.persona_state_flags = 0;
+            object.need_persona_response = false;
+            object.is_client_idle = false;
+        }
+        if (message.persona_state != null && Object.hasOwnProperty.call(message, "persona_state"))
+            object.persona_state = message.persona_state;
+        if (message.player_name != null && Object.hasOwnProperty.call(message, "player_name"))
+            object.player_name = message.player_name;
+        if (message.is_auto_generated_name != null && Object.hasOwnProperty.call(message, "is_auto_generated_name"))
+            object.is_auto_generated_name = message.is_auto_generated_name;
+        if (message.high_priority != null && Object.hasOwnProperty.call(message, "high_priority"))
+            object.high_priority = message.high_priority;
+        if (message.persona_set_by_user != null && Object.hasOwnProperty.call(message, "persona_set_by_user"))
+            object.persona_set_by_user = message.persona_set_by_user;
+        if (message.persona_state_flags != null && Object.hasOwnProperty.call(message, "persona_state_flags"))
+            object.persona_state_flags = message.persona_state_flags;
+        if (message.need_persona_response != null && Object.hasOwnProperty.call(message, "need_persona_response"))
+            object.need_persona_response = message.need_persona_response;
+        if (message.is_client_idle != null && Object.hasOwnProperty.call(message, "is_client_idle"))
+            object.is_client_idle = message.is_client_idle;
+        return object;
+    };
+
+    CMsgClientChangeStatus.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgClientChangeStatus.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgClientChangeStatus";
+    };
+
+    return CMsgClientChangeStatus;
+})();
+
+export const CMsgClientPlayingSessionState = $root.CMsgClientPlayingSessionState = (() => {
+
+    function CMsgClientPlayingSessionState(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgClientPlayingSessionState.prototype.playing_blocked = false;
+    CMsgClientPlayingSessionState.prototype.playing_app = 0;
+
+    CMsgClientPlayingSessionState.create = function create(properties) {
+        return new CMsgClientPlayingSessionState(properties);
+    };
+
+    CMsgClientPlayingSessionState.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.playing_blocked != null && Object.hasOwnProperty.call(message, "playing_blocked"))
+            writer.uint32(16).bool(message.playing_blocked);
+        if (message.playing_app != null && Object.hasOwnProperty.call(message, "playing_app"))
+            writer.uint32(24).uint32(message.playing_app);
+        return writer;
+    };
+
+    CMsgClientPlayingSessionState.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgClientPlayingSessionState();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 2: {
+                    message.playing_blocked = reader.bool();
+                    break;
+                }
+            case 3: {
+                    message.playing_app = reader.uint32();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgClientPlayingSessionState.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgClientPlayingSessionState)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgClientPlayingSessionState: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgClientPlayingSessionState();
+        if (object.playing_blocked != null)
+            message.playing_blocked = Boolean(object.playing_blocked);
+        if (object.playing_app != null)
+            message.playing_app = object.playing_app >>> 0;
+        return message;
+    };
+
+    CMsgClientPlayingSessionState.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults) {
+            object.playing_blocked = false;
+            object.playing_app = 0;
+        }
+        if (message.playing_blocked != null && Object.hasOwnProperty.call(message, "playing_blocked"))
+            object.playing_blocked = message.playing_blocked;
+        if (message.playing_app != null && Object.hasOwnProperty.call(message, "playing_app"))
+            object.playing_app = message.playing_app;
+        return object;
+    };
+
+    CMsgClientPlayingSessionState.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgClientPlayingSessionState.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgClientPlayingSessionState";
+    };
+
+    return CMsgClientPlayingSessionState;
+})();
+
+export const CMsgClientKickPlayingSession = $root.CMsgClientKickPlayingSession = (() => {
+
+    function CMsgClientKickPlayingSession(properties) {
+        if (properties)
+            for (let keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null && keys[i] !== "__proto__")
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    CMsgClientKickPlayingSession.prototype.only_stop_game = false;
+
+    CMsgClientKickPlayingSession.create = function create(properties) {
+        return new CMsgClientKickPlayingSession(properties);
+    };
+
+    CMsgClientKickPlayingSession.encode = function encode(message, writer, q) {
+        if (!writer)
+            writer = $Writer.create();
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        if (message.only_stop_game != null && Object.hasOwnProperty.call(message, "only_stop_game"))
+            writer.uint32(8).bool(message.only_stop_game);
+        return writer;
+    };
+
+    CMsgClientKickPlayingSession.decode = function decode(reader, length, error, long) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        if (long === undefined)
+            long = 0;
+        if (long > $Reader.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let end, message;
+        if (length === undefined)
+            end = reader.len;
+        else {
+            end = reader.pos + length;
+            if (end > reader.len)
+                throw RangeError("index out of range");
+            length = reader.len;
+            reader.len = end;
+        }
+        message = new $root.CMsgClientKickPlayingSession();
+        while (reader.pos < end) {
+            let tag = reader.uint32();
+            if (tag === error)
+                break;
+            switch (tag >>> 3) {
+            case 1: {
+                    message.only_stop_game = reader.bool();
+                    break;
+                }
+            default:
+                reader.skipType(tag & 7, long);
+                break;
+            }
+        }
+        if (length !== undefined) {
+            if (reader.pos !== end)
+                throw RangeError("index out of range");
+            reader.len = length;
+        }
+        return message;
+    };
+
+    CMsgClientKickPlayingSession.fromObject = function fromObject(object, long) {
+        if (object instanceof $root.CMsgClientKickPlayingSession)
+            return object;
+        if (!$util.isObject(object))
+            throw TypeError(".CMsgClientKickPlayingSession: object expected");
+        if (long === undefined)
+            long = 0;
+        if (long > $util.recursionLimit)
+            throw Error("maximum nesting depth exceeded");
+        let message = new $root.CMsgClientKickPlayingSession();
+        if (object.only_stop_game != null)
+            message.only_stop_game = Boolean(object.only_stop_game);
+        return message;
+    };
+
+    CMsgClientKickPlayingSession.toObject = function toObject(message, options, q) {
+        if (!options)
+            options = {};
+        if (q === undefined)
+            q = 0;
+        if (q > $util.recursionLimit)
+            throw Error("max depth exceeded");
+        let object = {};
+        if (options.defaults)
+            object.only_stop_game = false;
+        if (message.only_stop_game != null && Object.hasOwnProperty.call(message, "only_stop_game"))
+            object.only_stop_game = message.only_stop_game;
+        return object;
+    };
+
+    CMsgClientKickPlayingSession.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    CMsgClientKickPlayingSession.getTypeUrl = function getTypeUrl(typeUrlPrefix) {
+        if (typeUrlPrefix === undefined) {
+            typeUrlPrefix = "type.googleapis.com";
+        }
+        return typeUrlPrefix + "/CMsgClientKickPlayingSession";
+    };
+
+    return CMsgClientKickPlayingSession;
+})();
+
 export const CMsgGCClient = $root.CMsgGCClient = (() => {
 
     function CMsgGCClient(properties) {

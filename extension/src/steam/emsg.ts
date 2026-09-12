@@ -1,7 +1,10 @@
+import emsgNames from '../generated/emsg-names.json';
+
 /**
- * The handful of Steam message ids this extension uses, and the EResult codes
- * worth naming. Values taken from steam-user's enums; the full sets run to
- * hundreds of entries that would never be referenced.
+ * The Steam message ids this extension uses, and the EResult codes worth
+ * naming. Every value here is cross-checked against steam-user's enums by
+ * `test/extension-emsg.test.ts`, because Steam does not report an
+ * unrecognised message -- a wrong id shows up as silence, not an error.
  */
 export const EMsg = {
   Multi: 1,
@@ -12,19 +15,27 @@ export const EMsg = {
   // leaves the account not in-game, so the CS2 coordinator ignores the hello
   // that follows and never answers. steam-user sends only this one.
   ClientGamesPlayedWithDataBlob: 5410,
+  ClientChangeStatus: 716,
   ClientAccountInfo: 768,
   ClientToGC: 5452,
   ClientFromGC: 5453,
   ClientLogon: 5514,
+  ClientPlayingSessionState: 9600,
+  ClientKickPlayingSession: 9601,
 } as const;
 
-/** Reverse lookup, so an unexpected message can be logged by name. */
-export const EMSG_NAMES: Record<number, string> = Object.fromEntries(
-  Object.entries(EMsg).map(([name, value]) => [value, name]),
-);
+/**
+ * Every Steam message id by name, generated from steam-user's enum.
+ *
+ * The whole table rather than just the ids above, because its only job is to
+ * make an unexpected message legible -- and an unexpected message is by
+ * definition one that is not in the list we handle.
+ */
+const ALL_EMSG_NAMES = emsgNames as Record<string, string>;
 
 export function emsgName(emsg: number): string {
-  return EMSG_NAMES[emsg] ?? `EMsg ${emsg}`;
+  const name = ALL_EMSG_NAMES[String(emsg)];
+  return name ? `${name} (${emsg})` : `EMsg ${emsg}`;
 }
 
 export const EResult = {

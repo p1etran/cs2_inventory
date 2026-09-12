@@ -13,6 +13,7 @@ import {
   CMsgClientLoggedOff,
   CMsgClientLogon,
   CMsgClientLogonResponse,
+  CMsgClientPlayingSessionState,
   CMsgMulti,
   decode,
   encode,
@@ -41,11 +42,20 @@ const PROTOCOL_VERSION = 65580;
  * steam-user's own handling of a web logon token: 4294966596 is -700 as a
  * uint32, Valve's "web" OS type, and ui_mode 4 marks a web client.
  */
-const CLIENT_OS_WEB = 4294966596;
-const UI_MODE_WEB = 4;
+export const CLIENT_OS_WEB = 4294966596;
+export const UI_MODE_WEB = 4;
+/** What steam-user reports on Windows, for the second attempt. */
+export const CLIENT_OS_WINDOWS = 16;
 const ORIGIN_RULE_ID = 1;
 const CONNECT_TIMEOUT_MS = 10_000;
 const LOGON_TIMEOUT_MS = 20_000;
+
+/** What Steam says about our claim on the account's one game slot. */
+export interface PlayingSessionState {
+  blocked: boolean;
+  /** The app another session is playing, or 0 when nothing holds the slot. */
+  playingApp: number;
+}
 
 export interface LogonResult {
   steamId: string;
@@ -105,6 +115,23 @@ export async function removeOriginRule(): Promise<void> {
 
 export interface CmOptions {
   onLog?: (message: string) => void;
+  /**
+   * Logs every message Steam sends, named, including the ones nothing handles.
+   *
+   * On by default, and worth keeping on. Steam answers an unrecognised message
+   * with silence rather than an error, so without this a protocol mistake and
+   * a slow server look identical -- which is exactly how a games-played sent
+   * as the wrong EMsg survived two rounds of fixes.
+   */
+  traceMessages?: boolean;
+  /**
+   * Overrides the OS type and UI mode the logon reports.
+   *
+   * Steam may not grant a game slot to a session that identifies itself as a
+   * web client, and that question cannot be settled from outside. This is how
+   * the page tries it both ways in one run.
+   */
+  clientIdentity?: { clientOsType: number; uiMode?: number };
 }
 
 export class CmClient {
@@ -114,10 +141,30 @@ export class CmClient {
   private heartbeat: ReturnType<typeof setInterval> | null = null;
   private readonly handlers = new Map<number, MessageHandler[]>();
   private readonly log: (message: string) => void;
+  private readonly trace: boolean;
+  private readonly identity: { clientOsType: number; uiMode?: number };
   private accountInfo: { personaName: string | null } = { personaName: null };
+  private playingState: PlayingSessionState | null = null;
+  private readonly playingStateWatchers: ((state: PlayingSessionState) => void)[] = [];
 
   constructor(options: CmOptions = {}) {
     this.log = options.onLog ?? (() => {});
+    this.trace = options.traceMessages ?? true;
+    this.identity = options.clientIdentity ?? { clientOsType: CLIENT_OS_WEB, uiMode: UI_MODE_WEB };
+  }
+
+  /**
+   * Whether another session holds the account's game slot. Null until Steam
+   * has said either way -- and it saying nothing at all is itself a finding.
+   */
+  get playing(): PlayingSessionState | null {
+    return this.playingState;
+  }
+
+  /** Calls back on each playing-session update, and once now if one is known. */
+  onPlayingState(watcher: (state: PlayingSessionState) => void): void {
+    this.playingStateWatchers.push(watcher);
+    if (this.playingState) watcher(this.playingState);
   }
 
   on(emsg: number, handler: MessageHandler): void {
@@ -247,9 +294,43 @@ export class CmClient {
       this.accountInfo.personaName = info.persona_name ?? null;
     }
 
-    for (const handler of this.handlers.get(message.emsg) ?? []) {
+    if (message.emsg === EMsg.ClientPlayingSessionState) {
+      this.notePlayingState(message.body);
+    }
+
+    const handlers = this.handlers.get(message.emsg) ?? [];
+    if (this.trace) {
+      this.log(`<- ${emsgName(message.emsg)}${handlers.length === 0 ? ' (unhandled)' : ''}`);
+    }
+
+    for (const handler of handlers) {
       handler(message);
     }
+  }
+
+  /**
+   * Records whether we hold the game slot.
+   *
+   * This is the only thing that distinguishes "the coordinator is slow" from
+   * "we never became in-game", and Steam volunteers it rather than answering a
+   * request, so it is read here rather than waited for.
+   */
+  private notePlayingState(body: Uint8Array): void {
+    const decoded = decode<{ playing_blocked?: boolean; playing_app?: number }>(
+      CMsgClientPlayingSessionState,
+      body,
+    );
+    const state: PlayingSessionState = {
+      blocked: decoded.playing_blocked ?? false,
+      playingApp: decoded.playing_app ?? 0,
+    };
+    this.playingState = state;
+    this.log(
+      state.blocked
+        ? `Steam says another session holds the game slot${state.playingApp ? ` (app ${state.playingApp})` : ''}`
+        : `Steam says the game slot is ours${state.playingApp ? ` (app ${state.playingApp})` : ' (no app running)'}`,
+    );
+    for (const watcher of this.playingStateWatchers) watcher(state);
   }
 
   /**
@@ -328,12 +409,15 @@ export class CmClient {
         protocol_version: PROTOCOL_VERSION,
         web_logon_nonce: session.webLogonToken,
         account_name: session.accountName,
-        client_os_type: CLIENT_OS_WEB,
-        ui_mode: UI_MODE_WEB,
+        client_os_type: this.identity.clientOsType,
+        ...(this.identity.uiMode === undefined ? {} : { ui_mode: this.identity.uiMode }),
         chat_mode: 2,
       }),
     );
-    this.log('Logon sent, waiting for Steam');
+    this.log(
+      `Logon sent as OS type ${this.identity.clientOsType}` +
+        `${this.identity.uiMode === undefined ? ' with no UI mode' : `, UI mode ${this.identity.uiMode}`}`,
+    );
 
     return result;
   }

@@ -15,12 +15,16 @@
  */
 import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import protobuf from 'protobufjs';
+
+const require = createRequire(import.meta.url);
 
 const REPO = path.resolve(import.meta.dirname, '../..');
 const DESCRIPTOR = path.join(REPO, 'extension/src/generated/protos.json');
 const STATIC_MODULE = path.join(REPO, 'extension/src/generated/protos.js');
+const EMSG_NAMES = path.join(REPO, 'extension/src/generated/emsg-names.json');
 
 /** Every message the extension encodes or decodes, by source file. */
 const SOURCES = [
@@ -39,6 +43,14 @@ const SOURCES = [
       'CMsgClientAccountInfo',
       // Launching CS2 so the game coordinator will talk to us
       'CMsgClientGamesPlayed',
+      // A fresh session is Offline, and the Node client goes Online before
+      // reporting a game, so do the same rather than differ for no reason
+      'CMsgClientChangeStatus',
+      // How Steam reports whether we actually got the game slot. Without this
+      // a games-played that does not take effect is indistinguishable from a
+      // game coordinator that is merely slow.
+      'CMsgClientPlayingSessionState',
+      'CMsgClientKickPlayingSession',
       // The envelope every game-coordinator message travels in
       'CMsgGCClient',
     ],
@@ -169,6 +181,27 @@ for (const source of SOURCES) {
 mkdirSync(path.dirname(DESCRIPTOR), { recursive: true });
 writeFileSync(DESCRIPTOR, `${JSON.stringify(tree, null, 2)}\n`);
 console.log(`${count} types -> protos.json (${(JSON.stringify(tree).length / 1024).toFixed(1)} kB)`);
+
+/**
+ * The full EMsg number-to-name table, from steam-user's enum.
+ *
+ * Steam does not report an unrecognised message, so a protocol mistake shows
+ * up as silence rather than an error -- which is exactly how a games-played
+ * sent as the wrong EMsg cost two rounds of guessing. Being able to name every
+ * message that arrives is what turns that kind of silence into a diagnosis, so
+ * the whole table ships rather than the handful we happen to handle.
+ */
+const emsgNames = Object.fromEntries(
+  Object.entries(require('steam-user/enums/EMsg.js'))
+    // The enum is bidirectional; keep the number -> name direction only.
+    .filter(([key, value]) => /^\d+$/.test(key) && typeof value === 'string')
+    .sort(([a], [b]) => Number(a) - Number(b)),
+);
+writeFileSync(EMSG_NAMES, `${JSON.stringify(emsgNames, null, 1)}\n`);
+console.log(
+  `${Object.keys(emsgNames).length} EMsg names -> emsg-names.json` +
+    ` (${(JSON.stringify(emsgNames).length / 1024).toFixed(1)} kB)`,
+);
 
 /**
  * Compile the descriptor into a static module.

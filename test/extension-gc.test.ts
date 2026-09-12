@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CmClient } from '../extension/src/steam/cm.js';
+import type { CmClient, PlayingSessionState } from '../extension/src/steam/cm.js';
 import { EMsg } from '../extension/src/steam/emsg.js';
-import { decodeNetMessage, encodeNetMessage } from '../extension/src/steam/frame.js';
+import { JOBID_NONE, decodeNetMessage, encodeNetMessage } from '../extension/src/steam/frame.js';
 import { GcClient, GcError, GcMsg, type GcEconItem } from '../extension/src/steam/gc.js';
 import {
   CMsgCasketItem,
@@ -32,9 +32,13 @@ function fakeCm(): {
   sent: Sent[];
   /** Delivers a GC message as the CM would, envelope and all. */
   deliver: (gcMsg: number, body: Uint8Array, appid?: number) => void;
+  /** Reports what Steam said about the account's one game slot. */
+  setPlaying: (state: PlayingSessionState) => void;
 } {
   const handlers = new Map<number, ((message: unknown) => void)[]>();
+  const playingWatchers: ((state: PlayingSessionState) => void)[] = [];
   const sent: Sent[] = [];
+  let playing: PlayingSessionState | null = null;
 
   const cm = {
     on(emsg: number, handler: (message: unknown) => void) {
@@ -45,6 +49,18 @@ function fakeCm(): {
     send(emsg: number, body: Uint8Array, routingAppid?: number) {
       sent.push({ emsg, body, routingAppid });
     },
+    get playing() {
+      return playing;
+    },
+    onPlayingState(watcher: (state: PlayingSessionState) => void) {
+      playingWatchers.push(watcher);
+      if (playing) watcher(playing);
+    },
+  };
+
+  const setPlaying = (state: PlayingSessionState): void => {
+    playing = state;
+    for (const watcher of playingWatchers) watcher(state);
   };
 
   const deliver = (gcMsg: number, body: Uint8Array, appid = CS2_APPID): void => {
@@ -58,7 +74,7 @@ function fakeCm(): {
     }
   };
 
-  return { cm: cm as unknown as CmClient, sent, deliver };
+  return { cm: cm as unknown as CmClient, sent, deliver, setPlaying };
 }
 
 function econItem(fields: {
@@ -122,11 +138,15 @@ describe('game coordinator envelope', () => {
       const gc = clientFor(cm);
       const toGc = await helloFrom(gc, sent);
 
-      // The literal, not the constant: comparing against our own EMsg would
-      // hold however wrong that value was. Steam stopped acting on 742
-      // (ClientGamesPlayed), and with that one the account is never in-game,
-      // so the GC ignores every hello and never replies.
-      expect(sent[0]?.emsg).toBe(5410);
+      // Literals, not our own EMsg constants: comparing a value against the
+      // constant it came from holds however wrong that constant is, and did.
+      // Steam stopped acting on 742 (ClientGamesPlayed), and with that one the
+      // account never goes in-game, so the GC ignores every hello.
+      //
+      // Online (716) has to come before games-played (5410): a session is
+      // Offline until it says otherwise, which is the order the Node client
+      // uses too.
+      expect(sent.slice(0, 2).map((m) => m.emsg)).toEqual([716, 5410]);
 
       // The CM needs routing_appid to know which GC this belongs to.
       expect(toGc.routingAppid).toBe(CS2_APPID);
@@ -140,6 +160,23 @@ describe('game coordinator envelope', () => {
 
       // The payload carries its own header repeating the same message id.
       expect(decodeNetMessage(envelope.payload).emsg).toBe(GcMsg.ClientHello);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('sets jobid_source explicitly, as the reference client does', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent } = fakeCm();
+      const gc = clientFor(cm);
+      const toGc = await helloFrom(gc, sent);
+
+      const envelope = decode<{ payload: Uint8Array }>(CMsgGCClient, toGc.body);
+      // The generated descriptor drops proto2 defaults on 64-bit fields,
+      // because 2^64-1 does not survive a JS number -- so an empty header
+      // would leave this unset rather than defaulted.
+      expect(decodeNetMessage(envelope.payload).header.jobid_source).toBe(JOBID_NONE);
     } finally {
       vi.useRealTimers();
     }
@@ -272,6 +309,81 @@ describe('shared object cache', () => {
       }),
     );
     expect(gc.items).toEqual([]);
+  });
+});
+
+describe('when Steam will not give us the game slot', () => {
+  it('says which app is holding it rather than blaming the coordinator', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, setPlaying } = fakeCm();
+      const gc = clientFor(cm);
+      const connected = gc.connect();
+      const settled = connected.catch((error: unknown) => error);
+
+      setPlaying({ blocked: true, playingApp: 730 });
+
+      const error = await settled;
+      expect(error).toBeInstanceOf(GcError);
+      // The user asked not to be kicked out of a match, so the only thing to
+      // do is say so -- and no kick is ever sent.
+      expect((error as Error).message).toMatch(/another session/i);
+      expect((error as Error).message).toContain('730');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never sends a kick on its own', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, sent, setPlaying } = fakeCm();
+      const gc = clientFor(cm);
+      void gc.connect().catch(() => {});
+      setPlaying({ blocked: true, playingApp: 730 });
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      // 9601 is ClientKickPlayingSession. Kicking would drop someone out of a
+      // running match without warning.
+      expect(sent.map((m) => m.emsg)).not.toContain(9601);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('blames the session, not the coordinator, when Steam says nothing at all', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm } = fakeCm();
+      const gc = clientFor(cm);
+      const settled = gc.connect().catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      // No playing-session state ever arrived. Reporting "the GC may be down
+      // or you may not own CS2" here is what sent two rounds of fixes into the
+      // wrong place.
+      const message = (await settled as Error).message;
+      expect(message).toMatch(/never confirmed the game slot/i);
+      expect(message).not.toMatch(/may not own/i);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says games-played did not take effect when another app is running', async () => {
+    vi.useFakeTimers();
+    try {
+      const { cm, setPlaying } = fakeCm();
+      const gc = clientFor(cm);
+      const settled = gc.connect().catch((error: unknown) => error);
+      // Not blocked, but also not CS2: games-played simply did not land.
+      setPlaying({ blocked: false, playingApp: 0 });
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      expect((await settled as Error).message).toMatch(/did not take effect/i);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
