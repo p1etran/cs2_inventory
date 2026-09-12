@@ -116,6 +116,25 @@ describe('search', () => {
     ]);
   });
 
+  it('sorts by value, most valuable first', () => {
+    const prices = {
+      '★ Karambit | Fade (Factory New)': 145_000,
+      'AK-47 | Redline (Field-Tested)': 129,
+    };
+    // Scanning a list for what is worth something wants the expensive end.
+    expect(store.search({ sort: 'value', prices }).items.map((i) => i.assetId)).toEqual([
+      '1', '2', '3',
+    ]);
+  });
+
+  it('puts unpriced items last when sorting by value', () => {
+    const prices = { 'AK-47 | Redline (Field-Tested)': 129 };
+    // Not as zero: an unpriced item would otherwise bury the cheap-but-known
+    // ones at the bottom together, which is the wrong story.
+    const order = store.search({ sort: 'value', prices }).items.map((i) => i.assetId);
+    expect(order[0]).toBe('2');
+  });
+
   it('puts items with no float last, not first', () => {
     // Sorting nulls as zero would float every sticker above every knife.
     seed([item({ assetId: '5', floatValue: null, marketHashName: 'Sticker | Titan (Holo)' })]);
@@ -210,7 +229,7 @@ describe('storage units', () => {
     // The game says five, we hold two. Showing only "2 items" would read as a
     // complete unit, which is exactly the mistake worth preventing.
     expect(store.listContainers()).toEqual([
-      { assetId: '100', label: 'partly read', containedCount: 5, storedCount: 2 },
+      { assetId: '100', label: 'partly read', containedCount: 5, storedCount: 2, value: null },
     ]);
   });
 
@@ -234,7 +253,7 @@ describe('storage units', () => {
     // Counting a removed item would show the unit as fuller than it is, and
     // hide the very gap this column exists to reveal.
     expect(store.listContainers()).toEqual([
-      { assetId: '100', label: 'one', containedCount: 1, storedCount: 1 },
+      { assetId: '100', label: 'one', containedCount: 1, storedCount: 1, value: null },
     ]);
   });
 

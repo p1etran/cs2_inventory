@@ -2,6 +2,15 @@ import { Catalog, readCasketId, type CatalogIndex } from '../../src/core.js';
 import { signInWithQr } from './steam/auth.js';
 import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
+import {
+  BulkPriceSource,
+  describeAge,
+  formatMoney,
+  loadPrices,
+  savePrices,
+  valueOf,
+  type PriceData,
+} from './prices.js';
 import { machineId } from './steam/machineid.js';
 import { readPublicInventory, type InventoryPreview } from './steam/publicinventory.js';
 import { readSteamSession } from './steam/session.js';
@@ -17,6 +26,7 @@ import {
   itemRow,
   previewRow,
   previewUnitRow,
+  portfolioRows,
   renderContainers,
   renderStats,
   stackRow,
@@ -47,11 +57,12 @@ const state = {
   rarity: '',
   stattrak: false,
   sort: 'name' as NonNullable<SearchOptions['sort']>,
-  view: 'items' as 'items' | 'stacks' | 'changes',
+  view: 'items' as 'items' | 'stacks' | 'changes' | 'portfolio',
   page: 0,
   syncing: false,
   /** The public inventory, shown only until there is a real index. */
   preview: null as InventoryPreview | null,
+  prices: null as PriceData | null,
 };
 
 /** Unit labels by asset id, so rows can say where an item lives. */
@@ -68,6 +79,7 @@ function currentOptions(): SearchOptions {
     sort: state.sort,
     limit: PAGE_SIZE,
     offset: state.page * PAGE_SIZE,
+    prices: state.prices?.prices,
   };
 }
 
@@ -77,15 +89,20 @@ function render(): void {
     return;
   }
 
-  const containers = store.listContainers();
+  const money = state.prices
+    ? { prices: state.prices.prices, currency: state.prices.currency }
+    : undefined;
+
+  const containers = store.listContainers(money?.prices);
   labels.clear();
   for (const container of containers) labels.set(container.assetId, container.label);
 
-  $('stats').replaceChildren(...renderStats(store.getStats()));
+  $('stats').replaceChildren(...renderStats(store.getStats()), ...valueTile(money));
   $('containers').replaceChildren(
     ...renderContainers({
       containers,
       selected: state.container,
+      currency: money?.currency,
       onSelect: (assetId) => {
         state.container = assetId;
         state.page = 0;
@@ -98,7 +115,12 @@ function render(): void {
   let total = 0;
   let shown = 0;
 
-  if (state.view === 'changes') {
+  if (state.view === 'portfolio') {
+    const { rows: built, empty } = portfolioRows(store.runs, money?.currency ?? 'USD');
+    total = built.length;
+    shown = built.length;
+    rows.replaceChildren(...(built.length > 0 ? built : [el('div', 'empty', empty ?? '')]));
+  } else if (state.view === 'changes') {
     const events = store.recentEvents(200);
     total = events.length;
     shown = events.length;
@@ -125,10 +147,10 @@ function render(): void {
     const result = store.search(currentOptions());
     total = result.total;
     shown = result.items.length;
-    rows.replaceChildren(...result.items.map((item) => itemRow(item, labels)));
+    rows.replaceChildren(...result.items.map((item) => itemRow(item, labels, money)));
   }
 
-  if (shown === 0) {
+  if (shown === 0 && state.view !== 'portfolio') {
     rows.replaceChildren(
       el(
         'div',
@@ -138,11 +160,18 @@ function render(): void {
     );
   }
 
-  const noun = state.view === 'stacks' ? 'groups' : state.view === 'changes' ? 'changes' : 'items';
+  const noun =
+    state.view === 'stacks'
+      ? 'groups'
+      : state.view === 'changes'
+        ? 'changes'
+        : state.view === 'portfolio'
+          ? 'valued syncs'
+          : 'items';
   $('result-count').textContent = total ? `${total.toLocaleString()} ${noun}` : '';
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const paged = state.view !== 'changes';
+  const paged = state.view === 'items' || state.view === 'stacks';
   $('page-label').textContent = paged && total > PAGE_SIZE ? `Page ${state.page + 1} of ${pages}` : '';
   ($('prev') as HTMLButtonElement).disabled = !paged || state.page === 0;
   ($('next') as HTMLButtonElement).disabled = !paged || state.page + 1 >= pages;
@@ -187,6 +216,30 @@ function renderPreview(preview: InventoryPreview): void {
   $('page-label').textContent = '';
   ($('prev') as HTMLButtonElement).disabled = true;
   ($('next') as HTMLButtonElement).disabled = true;
+}
+
+/**
+ * The total, and honestly what it excludes.
+ *
+ * An inventory always contains things with no market listing, so the figure is
+ * a floor rather than a valuation, and the tile says how many items are not in
+ * it. A bare total invites trusting a number that is too low.
+ */
+function valueTile(money?: { prices: Record<string, number>; currency: string }): HTMLElement[] {
+  if (!money) return [];
+
+  const live = store.items.filter((item) => item.removedAt === null && !item.isContainer);
+  const value = valueOf(live, money.prices);
+
+  const tile = el('div', 'stat');
+  tile.append(
+    el('b', null, formatMoney(value.total, money.currency)),
+    el('span', null, value.unpriced > 0 ? `Value (${value.unpriced.toLocaleString()} unpriced)` : 'Value'),
+  );
+  if (value.unpriced > 0) {
+    tile.title = `${value.unpriced.toLocaleString()} items have no market price, so the real total is higher.`;
+  }
+  return [tile];
 }
 
 function syncTabs(): void {
@@ -356,6 +409,16 @@ async function sync(): Promise<void> {
       },
     });
 
+    // Record what it was worth, so the value tab is a history rather than a
+    // single number. Only when prices are actually loaded: a zero would draw
+    // the portfolio line through the floor.
+    if (state.prices) {
+      const live = store.items.filter((item) => item.removedAt === null && !item.isContainer);
+      const value = valueOf(live, state.prices.prices);
+      store.noteRunValue(value.total, state.prices.currency);
+      await store.save();
+    }
+
     loadFacets();
     render();
 
@@ -392,6 +455,70 @@ async function sync(): Promise<void> {
     client?.disconnect();
     ($('sync') as HTMLButtonElement).disabled = false;
     state.syncing = false;
+  }
+}
+
+/**
+ * The price source.
+ *
+ * A public bulk file: one request covers every item name, where Steam's own
+ * endpoint is priced per name and rate-limited to roughly twenty a minute --
+ * about an hour for this inventory. The host is an *optional* permission,
+ * requested the first time somebody asks for prices, so the install prompt
+ * stays to what the extension needs to do its actual job.
+ */
+const PRICE_URL = 'https://prices.csgotrader.app/latest/prices_v6.json';
+const PRICE_HOST = 'https://prices.csgotrader.app/*';
+const priceSource = new BulkPriceSource(PRICE_URL);
+
+function showPriceAge(): void {
+  $('prices').textContent = state.prices
+    ? `Prices ${describeAge(state.prices)}`
+    : '';
+}
+
+async function fetchPrices(): Promise<void> {
+  const button = $('loadprices') as HTMLButtonElement;
+  button.disabled = true;
+
+  try {
+    // Asked for at the moment it is needed, not at install time. Chrome
+    // requires this to be called from a user gesture, which a click is.
+    const granted = await chrome.permissions.request({ origins: [PRICE_HOST] });
+    if (!granted) {
+      status('Prices need permission to reach the price source. Nothing else changed.', 'warn');
+      return;
+    }
+
+    status(`Loading prices from ${priceSource.name}...`);
+    const prices = await priceSource.fetch(async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+      return response.json();
+    });
+
+    const data = {
+      prices,
+      currency: priceSource.currency,
+      fetchedAt: new Date().toISOString(),
+      source: priceSource.name,
+    };
+    await savePrices(data);
+    state.prices = { ...data, version: 1 };
+
+    showPriceAge();
+    render();
+    status(
+      `Loaded ${Object.keys(prices).length.toLocaleString()} prices from ${priceSource.name}`,
+      'ok',
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // A price source is somebody else's free file; it going away must not
+    // look like the extension breaking.
+    status(`Could not load prices: ${message}. Everything else still works.`, 'warn');
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -454,6 +581,7 @@ function wireControls(): void {
   });
 
   $('sync').addEventListener('click', () => void sync());
+  $('loadprices').addEventListener('click', () => void fetchPrices());
 
   $('details').addEventListener('click', () => {
     const pane = $('log');
@@ -473,6 +601,10 @@ async function main(): Promise<void> {
   wireControls();
   await store.load();
   loadFacets();
+  render();
+
+  state.prices = await loadPrices();
+  showPriceAge();
   render();
 
   const saved = await loadSession();

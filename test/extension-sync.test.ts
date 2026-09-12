@@ -360,7 +360,7 @@ describe('what a sync records', () => {
     await reopened.load();
     expect(reopened.getStats().totalItems).toBe(3);
     expect(reopened.listContainers()).toEqual([
-      { assetId: '100', label: 'one', containedCount: 1, storedCount: 1 },
+      { assetId: '100', label: 'one', containedCount: 1, storedCount: 1, value: null },
     ]);
   });
 });

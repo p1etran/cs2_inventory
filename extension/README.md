@@ -34,6 +34,31 @@ sees their own things immediately, and can see exactly what signing in would
 add: what is *inside* those units, which is the one thing that endpoint will
 never return.
 
+**And it can price them.** A "Prices" button loads a public bulk price table
+and the page gains a value column, a total, per-unit values, a value sort, and
+a history of what the inventory has been worth at each sync.
+
+## Money, and the two ways to get it wrong
+
+Prices are kept in integer minor units and never as a float. Summing sixteen
+thousand floats accumulates error, and a portfolio figure visibly wrong in its
+last digit is worse than no figure. The conversion also goes via the decimal
+string rather than `Math.round(x * 100)`, which rounds *up* on a multiplication
+artifact: 1.115 is stored as 1.11499..., but times 100 it lands on exactly
+111.5. That is the direction that inflates a portfolio, so it has a test.
+
+The other way to be wrong is silence. An inventory is full of things with no
+market listing, so an unpriced item is shown as a dash and never a zero, the
+total tile says how many items are not in it, and a storage unit that was only
+partly read shows `≥` in front of its value. The number is a floor, and the UI
+says so everywhere it appears.
+
+The price source is behind an interface and its host is an *optional*
+permission, requested the first time somebody presses "Prices". The install
+prompt stays to what the extension needs for its actual job, and a source going
+away -- these are all somebody's free side project -- degrades prices without
+touching anything else.
+
 ## Build and load
 
 ```bash
@@ -241,6 +266,7 @@ against the source.
 | `*.steamserver.net` | The connection-manager WebSocket, which carries both the QR sign-in and the game-coordinator traffic. |
 | `api.steampowered.com` | Steam's public server list. |
 | `raw.githubusercontent.com` | The public CS2 item schema, used to name items. |
+| `prices.csgotrader.app` (optional) | Prices. Not requested at install: asked for the first time you press "Prices", and the extension works fully without it. |
 | `storage` | The index and the saved sign-in, both local. |
 | `unlimitedStorage` | A real account runs to tens of thousands of items -- ~12.8 MB against the 10 MB `storage` allows by default. Chrome shows no install warning for it. |
 
@@ -303,6 +329,7 @@ extension/
       servers.ts      server selection
       session.ts      exchanges the browser session for a logon token
       emsg.ts         the message ids and result codes used
+    prices.ts       price tables, valuation, and money that does not drift
     store.ts        the index: query surface over an array, persisted as JSON
     sync.ts         reads the whole account, unit by unit
     app.html, extra.css  the page; web/style.css is shared with the local UI

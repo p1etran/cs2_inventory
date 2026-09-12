@@ -39,6 +39,8 @@ everything inside, on your own machine.
 - Filter by type, rarity, StatTrak, or which unit something is in.
 - See what changed since last time: what arrived, what left, what moved between
   units.
+- Optionally load prices to see what it is all worth, per item, per storage
+  unit, and over time.
 - Works offline once indexed. Open it on a plane and your inventory is there.
 
 **How you sign in**
@@ -90,6 +92,7 @@ The Chrome Web Store asks for a reason for each one. These are the reasons.
 | `api.steampowered.com` | Fetches Steam's public list of connection-manager servers, to know which one to connect to. |
 | `*.steamserver.net` | The connection to Steam that carries the sign-in and the inventory read. |
 | `raw.githubusercontent.com` | Downloads the public CS2 item schema, which is what turns a numeric item id into "AK-47 \| Redline". |
+| `prices.csgotrader.app` (optional) | Item prices, for the value column and portfolio. Optional: it is requested only when the user presses "Prices", and the extension is fully functional without it. |
 
 **Single purpose:** indexing and searching the CS2 inventory of the signed-in
 user, including the contents of storage units.

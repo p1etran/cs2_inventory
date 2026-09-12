@@ -6,6 +6,7 @@ import {
   eventRow,
   itemRow,
   locationLabel,
+  portfolioRows,
   renderContainers,
   renderStats,
   stackRow,
@@ -120,8 +121,8 @@ describe('item rows', () => {
 
 describe('the storage unit list', () => {
   const containers: ContainerRow[] = [
-    { assetId: '100', label: 'cases - p1', containedCount: 818, storedCount: 818 },
-    { assetId: '200', label: 'czarna dziura', containedCount: 981, storedCount: 400 },
+    { assetId: '100', label: 'cases - p1', containedCount: 818, storedCount: 818, value: null },
+    { assetId: '200', label: 'czarna dziura', containedCount: 981, storedCount: 400, value: null },
   ];
 
   it('shows both counts for every unit', () => {
@@ -169,7 +170,7 @@ describe('the storage unit list', () => {
 
   it('treats a unit label as text', () => {
     const rows = renderContainers({
-      containers: [{ assetId: '1', label: '<b>bold</b>', containedCount: 0, storedCount: 0 }],
+      containers: [{ assetId: '1', label: '<b>bold</b>', containedCount: 0, storedCount: 0, value: null }],
       selected: null,
       onSelect: () => {},
     });
@@ -273,6 +274,117 @@ describe('change rows', () => {
   it('falls back to the asset id when the name was never known', () => {
     const row = eventRow({ ...base, marketHashName: '' }, labels);
     expect(row.querySelector('.title')?.textContent).toBe('1');
+  });
+});
+
+describe('money on a row', () => {
+  const money = { prices: { 'AK-47 | Redline (Field-Tested)': 1055 }, currency: 'USD' };
+
+  it('shows nothing at all when prices are not loaded', () => {
+    expect(itemRow(storedItem(), labels).querySelector('.money')).toBeNull();
+  });
+
+  it('shows the price when it has one', () => {
+    const row = itemRow(storedItem(), labels, money);
+    expect(row.querySelector('.money')?.textContent).toMatch(/10\.55/);
+  });
+
+  it('shows a dash, not a zero, for an item with no price', () => {
+    // An item with no market listing is unpriced, not worthless, and the two
+    // must never look the same on a row someone is scanning for value.
+    const row = itemRow(storedItem({ marketHashName: 'Souvenir nobody trades' }), labels, money);
+    expect(row.querySelector('.money')?.textContent).toBe('—');
+    expect(row.querySelector('.money')?.className).toContain('none');
+  });
+});
+
+describe('unit values', () => {
+  const containers: ContainerRow[] = [
+    { assetId: '100', label: 'full', containedCount: 10, storedCount: 10, value: 50_000 },
+    { assetId: '200', label: 'short', containedCount: 100, storedCount: 40, value: 20_000 },
+  ];
+
+  it('shows nothing when prices are not loaded', () => {
+    const rows = renderContainers({
+      containers: containers.map((c) => ({ ...c, value: null })),
+      selected: null,
+      onSelect: () => {},
+    });
+    expect(rows[1]?.querySelector('.unit-value')).toBeNull();
+  });
+
+  it('shows what a fully read unit holds', () => {
+    const rows = renderContainers({ containers, selected: null, onSelect: () => {}, currency: 'USD' });
+    expect(rows[1]?.querySelector('.unit-value')?.textContent).toMatch(/^\$?500\.00/);
+  });
+
+  it('marks a short unit as at-least, because the rest is not counted', () => {
+    const rows = renderContainers({ containers, selected: null, onSelect: () => {}, currency: 'USD' });
+    const value = rows[2]?.querySelector('.unit-value');
+
+    // 40 of 100 items are priced into this figure. Presenting it as the
+    // unit's worth would understate it by more than half.
+    expect(value?.textContent).toMatch(/^≥/);
+    expect(value?.getAttribute('title')).toMatch(/not been read/);
+  });
+});
+
+describe('the portfolio', () => {
+  const run = (at: string, value: number | undefined, totalItems = 16_167) => ({
+    at,
+    steamId: '765',
+    totalItems,
+    containers: 22,
+    added: 0,
+    removed: 0,
+    moved: 0,
+    unresolved: 0,
+    failedContainers: 0,
+    ...(value === undefined ? {} : { value, currency: 'USD' }),
+  });
+
+  it('says what to do when nothing has been valued yet', () => {
+    const { rows, empty } = portfolioRows([run('2026-09-12T19:00:00Z', undefined)], 'USD');
+    expect(rows).toEqual([]);
+    expect(empty).toMatch(/Load prices/);
+  });
+
+  it('skips runs made before prices were loaded', () => {
+    // A run with no value is not a run worth zero, and charting it as zero
+    // would put a cliff in the history.
+    const { rows } = portfolioRows(
+      [run('2026-09-12T19:00:00Z', 168_800), run('2026-09-11T19:00:00Z', undefined)],
+      'USD',
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it('shows the change since the previous valued sync, with its sign', () => {
+    const { rows } = portfolioRows(
+      [run('2026-09-12T19:00:00Z', 170_000), run('2026-09-11T19:00:00Z', 168_800)],
+      'USD',
+    );
+
+    expect(rows[0]?.querySelector('.float')?.textContent).toMatch(/^\+/);
+    expect(rows[0]?.querySelector('.float')?.className).toContain('up');
+    // The oldest row has nothing to compare against.
+    expect(rows[1]?.querySelector('.float')?.textContent).toBe('');
+  });
+
+  it('marks a fall as a fall', () => {
+    const { rows } = portfolioRows(
+      [run('2026-09-12T19:00:00Z', 160_000), run('2026-09-11T19:00:00Z', 168_800)],
+      'USD',
+    );
+    expect(rows[0]?.querySelector('.float')?.textContent).toMatch(/^-/);
+    expect(rows[0]?.querySelector('.float')?.className).toContain('down');
+  });
+
+  it('uses the currency the run was valued in, not today\'s', () => {
+    // Switching source or currency later must not relabel old figures.
+    const older = { ...run('2026-09-11T19:00:00Z', 100_000), currency: 'EUR' };
+    const { rows } = portfolioRows([older], 'USD');
+    expect(rows[0]?.querySelector('.title')?.textContent).toMatch(/€|EUR/);
   });
 });
 

@@ -1,3 +1,4 @@
+import { formatMoney, type PriceTable } from '../prices.js';
 import type { PreviewItem, PreviewUnit } from '../steam/publicinventory.js';
 import type {
   ContainerRow,
@@ -5,6 +6,7 @@ import type {
   StackRow,
   Stats,
   StoredItem,
+  SyncRun,
 } from '../store.js';
 
 /**
@@ -67,6 +69,8 @@ export interface ContainerListOptions {
   containers: ContainerRow[];
   selected: string | null;
   onSelect: (assetId: string | null) => void;
+  /** Set when prices are loaded, so units can show what they hold. */
+  currency?: string;
 }
 
 export function renderContainers(options: ContainerListOptions): HTMLLIElement[] {
@@ -93,6 +97,17 @@ export function renderContainers(options: ContainerListOptions): HTMLLIElement[]
     if (short) count.title = 'Some items in this unit have not been read yet';
     button.append(count);
 
+    if (container.value !== null && options.currency) {
+      const value = el('span', 'unit-value', formatMoney(container.value, options.currency));
+      if (short) {
+        // The unit is worth at least this: the part we could not read is not
+        // in the figure, and presenting it as a total would understate it.
+        value.title = 'At least this much — some of this unit has not been read';
+        value.textContent = `≥ ${value.textContent ?? ''}`;
+      }
+      button.append(value);
+    }
+
     button.addEventListener('click', () =>
       options.onSelect(options.selected === container.assetId ? null : container.assetId),
     );
@@ -117,7 +132,11 @@ function thumbnail(url: string | null): HTMLElement {
   return wrapper;
 }
 
-export function itemRow(item: StoredItem, labels: Map<string, string>): HTMLElement {
+export function itemRow(
+  item: StoredItem,
+  labels: Map<string, string>,
+  money?: { prices: PriceTable; currency: string },
+): HTMLElement {
   const row = el('div', 'row');
   if (item.rarityColor) row.style.borderLeftColor = item.rarityColor;
 
@@ -139,6 +158,16 @@ export function itemRow(item: StoredItem, labels: Map<string, string>): HTMLElem
   );
 
   row.append(thumbnail(item.imageUrl), name, float, where);
+
+  if (money) {
+    const price = money.prices[item.marketHashName];
+    // A dash, not a zero. An item with no market listing is not worthless,
+    // it is unpriced, and the two should never look the same.
+    row.append(
+      el('div', price === undefined ? 'money none' : 'money',
+        price === undefined ? '—' : formatMoney(price, money.currency)),
+    );
+  }
   return row;
 }
 
@@ -210,6 +239,54 @@ export function previewUnitRow(unit: PreviewUnit): HTMLLIElement {
   const row = el('li');
   row.append(button);
   return row;
+}
+
+/**
+ * What the inventory has been worth, one row per sync.
+ *
+ * A table rather than a chart. Twenty-odd syncs is not a shape worth drawing,
+ * and the numbers are the point -- somebody checking a portfolio wants to read
+ * the figure, not estimate it off an axis.
+ */
+export function portfolioRows(
+  runs: readonly SyncRun[],
+  currency: string,
+): { rows: HTMLElement[]; empty: string | null } {
+  const valued = runs.filter(
+    (run): run is SyncRun & { value: number } => typeof run.value === 'number',
+  );
+
+  if (valued.length === 0) {
+    return {
+      rows: [],
+      empty: 'No valued syncs yet. Load prices, then sync, and each one is recorded here.',
+    };
+  }
+
+  const rows = valued.map((run, index) => {
+    const row = el('div', 'row');
+    const previous = valued[index + 1];
+    const change = previous ? run.value - previous.value : null;
+
+    const name = el('div', 'name');
+    name.append(
+      el('div', 'title', formatMoney(run.value, run.currency ?? currency)),
+      el('div', 'sub', `${run.totalItems.toLocaleString()} items`),
+    );
+
+    const delta = el('div', 'float');
+    if (change !== null) {
+      // Sign always shown: "1200" and "+1200" mean different things on a row
+      // that is otherwise just a number.
+      delta.textContent = `${change >= 0 ? '+' : '-'}${formatMoney(Math.abs(change), run.currency ?? currency)}`;
+      delta.className = `float ${change > 0 ? 'up' : change < 0 ? 'down' : ''}`.trim();
+    }
+
+    row.append(el('div'), name, delta, el('div', 'where', new Date(run.at).toLocaleString()));
+    return row;
+  });
+
+  return { rows, empty: null };
 }
 
 /** What to say when a filter matches nothing, which depends on why. */

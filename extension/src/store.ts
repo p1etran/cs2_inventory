@@ -1,3 +1,4 @@
+import type { PriceTable } from './prices.js';
 import {
   searchKey,
   type InventoryDiff,
@@ -50,6 +51,13 @@ export interface SyncRun {
   unresolved: number;
   /** Units the game reports as non-empty that this run could not read. */
   failedContainers: number;
+  /**
+   * What it was worth, in minor units, when prices were loaded at the time.
+   * Absent on a run made without them, which is why it is optional rather
+   * than zero -- a zero would draw a portfolio line through the floor.
+   */
+  value?: number;
+  currency?: string;
 }
 
 interface Snapshot {
@@ -75,9 +83,11 @@ export interface SearchOptions {
   souvenir?: boolean;
   unresolvedOnly?: boolean;
   includeRemoved?: boolean;
-  sort?: 'name' | 'float' | 'recent';
+  sort?: 'name' | 'float' | 'recent' | 'value';
   limit?: number;
   offset?: number;
+  /** Needed only for `sort: 'value'`; filtering never depends on price. */
+  prices?: PriceTable;
 }
 
 export interface ContainerRow {
@@ -87,6 +97,8 @@ export interface ContainerRow {
   containedCount: number;
   /** What we actually hold for it. A gap means a read was interrupted. */
   storedCount: number;
+  /** Minor units, or null when there are no prices loaded. */
+  value: number | null;
 }
 
 export interface Stats {
@@ -231,6 +243,12 @@ export class Store {
     this.snapshot.events = [...events, ...this.snapshot.events].slice(0, MAX_EVENTS);
   }
 
+  /** Attaches a value to the most recent run, once prices are known. */
+  noteRunValue(value: number, currency: string): void {
+    const latest = this.snapshot.runs[0];
+    if (latest) this.snapshot.runs[0] = { ...latest, value, currency };
+  }
+
   recordRun(run: SyncRun): void {
     this.snapshot.runs = [run, ...this.snapshot.runs].slice(0, MAX_RUNS);
   }
@@ -249,7 +267,7 @@ export class Store {
    */
   search(options: SearchOptions = {}): { total: number; items: StoredItem[] } {
     const matched = this.filter(options);
-    const sorted = this.sort(matched, options.sort ?? 'name');
+    const sorted = this.sort(matched, options.sort ?? 'name', options.prices);
     const limit = Math.min(Math.max(options.limit ?? 100, 1), 1000);
     const offset = Math.max(options.offset ?? 0, 0);
 
@@ -279,7 +297,11 @@ export class Store {
     });
   }
 
-  private sort(items: StoredItem[], sort: NonNullable<SearchOptions['sort']>): StoredItem[] {
+  private sort(
+    items: StoredItem[],
+    sort: NonNullable<SearchOptions['sort']>,
+    prices?: PriceTable,
+  ): StoredItem[] {
     const byName = (a: StoredItem, b: StoredItem) =>
       a.marketHashName.localeCompare(b.marketHashName) ||
       (a.floatValue ?? Infinity) - (b.floatValue ?? Infinity);
@@ -294,6 +316,13 @@ export class Store {
     if (sort === 'recent') {
       return sorted.sort((a, b) => b.firstSeen.localeCompare(a.firstSeen) || byName(a, b));
     }
+    if (sort === 'value') {
+      // Most valuable first: the useful direction for a list you are scanning
+      // to find what is worth something. Unpriced items sort last rather than
+      // as zero-value, so they do not bury the cheap-but-known ones.
+      const priceOf = (item: StoredItem) => prices?.[item.marketHashName] ?? -1;
+      return sorted.sort((a, b) => priceOf(b) - priceOf(a) || byName(a, b));
+    }
     return sorted.sort(byName);
   }
 
@@ -304,11 +333,16 @@ export class Store {
    * hold; a gap means that unit's read was interrupted, and the UI should say
    * so rather than quietly showing a short list as if it were complete.
    */
-  listContainers(): ContainerRow[] {
+  listContainers(prices?: PriceTable): ContainerRow[] {
     const stored = new Map<string, number>();
+    const value = new Map<string, number>();
     for (const item of this.snapshot.items) {
       if (item.removedAt !== null || item.containerId === null) continue;
       stored.set(item.containerId, (stored.get(item.containerId) ?? 0) + 1);
+      const price = prices?.[item.marketHashName];
+      if (price !== undefined) {
+        value.set(item.containerId, (value.get(item.containerId) ?? 0) + price);
+      }
     }
 
     return this.snapshot.items
@@ -318,6 +352,7 @@ export class Store {
         label: unit.customName || 'Storage Unit',
         containedCount: unit.containedCount ?? 0,
         storedCount: stored.get(unit.assetId) ?? 0,
+        value: prices ? (value.get(unit.assetId) ?? 0) : null,
       }))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
   }

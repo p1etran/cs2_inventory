@@ -14,6 +14,8 @@
     <input id="q" type="search" placeholder="Search everything you own, storage units included" autocomplete="off" autofocus>
   </div>
   <span id="account" class="account"></span>
+  <span id="prices" class="prices"></span>
+  <button id="loadprices" class="btn btn-quiet">Prices</button>
   <button id="sync" class="btn">Sync</button>
   <button id="cancel" class="btn btn-quiet" hidden>Stop</button>
 </header>
@@ -42,6 +44,7 @@
         <button class="tab is-active" data-view="items">Items</button>
         <button class="tab" data-view="stacks">Grouped</button>
         <button class="tab" data-view="changes">Changes</button>
+        <button class="tab" data-view="portfolio">Value</button>
       </div>
       <div class="filters">
         <select id="category"><option value="">All types</option></select>
@@ -55,6 +58,7 @@
           <option value="name">Sort: name</option>
           <option value="float">Sort: float</option>
           <option value="recent">Sort: newest</option>
+          <option value="value">Sort: value</option>
         </select>
         <label class="check"><input type="checkbox" id="stattrak"> StatTrak</label>
       </div>

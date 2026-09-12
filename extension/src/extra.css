@@ -39,3 +39,18 @@
    worth colouring, because the page otherwise looks complete when it is not. */
 .syncbar.ok { border-left: 3px solid #7bd88f; }
 .syncbar.warn { border-left: 3px solid #ffb454; color: #ffd9a0; }
+
+/* Money. A dash for an unpriced item is deliberately quiet: it is not a
+   zero, and it should not read as one. */
+.money {
+  width: 96px; text-align: right; font-variant-numeric: tabular-nums;
+  color: #e6e8ee; font-size: 13px;
+}
+.money.none { color: #4b5563; }
+.unit-value {
+  display: block; font-size: 11px; color: #8d94a5;
+  font-variant-numeric: tabular-nums; margin-top: 1px;
+}
+.float.up { color: #7bd88f; }
+.float.down { color: #ff6b6b; }
+.prices { color: #8d94a5; font-size: 12px; white-space: nowrap; }
