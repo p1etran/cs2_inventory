@@ -52,6 +52,15 @@ const CONNECT_TIMEOUT_MS = 10_000;
 const LOGON_TIMEOUT_MS = 20_000;
 const SERVICE_TIMEOUT_MS = 15_000;
 
+/**
+ * Messages that only wrap a game-coordinator one.
+ *
+ * Tracing these as well doubles the log for no information: every line is
+ * immediately followed by the coordinator message it carried, named. Reading a
+ * single 1000-item storage unit is two thousand lines rather than one.
+ */
+const CARRIES_GC_TRAFFIC: ReadonlySet<number> = new Set([EMsg.ClientToGC, EMsg.ClientFromGC]);
+
 /** What Steam says about our claim on the account's one game slot. */
 export interface PlayingSessionState {
   blocked: boolean;
@@ -277,7 +286,7 @@ export class CmClient {
     }
     // Outbound as well as inbound. Tracing only what arrives left "are the
     // hellos even being sent" unanswerable across two runs.
-    if (this.trace) this.log(`-> ${emsgName(emsg)}`);
+    if (this.trace && !CARRIES_GC_TRAFFIC.has(emsg)) this.log(`-> ${emsgName(emsg)}`);
     this.socket.send(encodeNetMessage(emsg, header, body) as unknown as ArrayBufferView);
   }
 
@@ -395,7 +404,7 @@ export class CmClient {
     }
 
     const handlers = this.handlers.get(message.emsg) ?? [];
-    if (this.trace) {
+    if (this.trace && !CARRIES_GC_TRAFFIC.has(message.emsg)) {
       this.log(`<- ${emsgName(message.emsg)}${handlers.length === 0 ? ' (unhandled)' : ''}`);
     }
 

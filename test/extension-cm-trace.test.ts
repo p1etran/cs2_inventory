@@ -49,6 +49,16 @@ describe('the message trace', () => {
     expect(lines).toContainEqual('<- ClientPersonaState (766)');
   });
 
+  it('does not trace an envelope that only wraps a coordinator message', async () => {
+    const { client, lines, feed } = clientWithLog();
+    client.on(EMsg.ClientFromGC, () => {});
+
+    // The coordinator layer names what was inside, immediately after. Tracing
+    // the wrapper too doubles a 1000-item read to two thousand lines.
+    await feed(encodeNetMessage(EMsg.ClientFromGC, {}, new Uint8Array(0)));
+    expect(lines.filter((line) => line.startsWith('<-'))).toEqual([]);
+  });
+
   it('can be turned off', async () => {
     const { lines, feed } = clientWithLog({ traceMessages: false });
     await feed(encodeNetMessage(766, {}, new Uint8Array(0)));

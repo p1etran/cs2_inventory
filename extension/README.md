@@ -5,6 +5,10 @@ and without a server.
 
 ## Where this is up to
 
+**Working end to end.** Against a real account: signed in by QR, reached the
+CS2 game coordinator, listed 22 storage units with their labels and counts, and
+read one of them -- 1000 of 1000 items in 2.9 seconds, named correctly.
+
 **Sign in by QR, then read one storage unit.** The extension opens a page,
 shows a QR code to scan in the Steam mobile app, logs on to a Steam connection
 manager over a WebSocket, reaches the CS2 game coordinator, lists the account's
@@ -91,8 +95,10 @@ loading the extension, not by reading about it.
 
 ## The finding that decides the product
 
-**The coordinator refuses a client that says it is a web browser.** Two things
-were wrong at once, and separating them took a wrong turn worth recording.
+**The coordinator refuses a client that says it is a web browser.** Confirmed
+by fixing it: with `ui_mode` left out and a client token, the same code gets a
+welcome and reads a storage unit. Two things were wrong at once, and separating
+them took a wrong turn worth recording.
 
 | checked | result |
 | --- | --- |

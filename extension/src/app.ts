@@ -4,6 +4,7 @@ import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
 import { machineId } from './steam/machineid.js';
 import { forgetSession, inspectToken, loadSession, saveSession } from './steam/tokens.js';
+import { CollapsingLog } from './ui/log.js';
 import { renderQrSvg } from './ui/qr.js';
 
 /**
@@ -25,13 +26,10 @@ const connectButton = document.getElementById('connect') as HTMLButtonElement;
 const signOutButton = document.getElementById('signout') as HTMLButtonElement;
 const signInEl = document.getElementById('signin') as HTMLDivElement;
 
-function write(text: string, cls = ''): void {
-  const span = document.createElement('span');
-  if (cls) span.className = cls;
-  span.textContent = `${text}\n`;
-  logEl.append(span);
-  logEl.scrollTop = logEl.scrollHeight;
-}
+const log = new CollapsingLog(logEl);
+
+const write = (text: string, cls = ''): void => log.write(text, cls);
+const clearLog = (): void => log.clear();
 
 function showAccount(name: string, steamId: string): void {
   accountEl.replaceChildren();
@@ -120,7 +118,9 @@ function hideQr(): void {
  * every hello. There is no API to widen a token's audience, so this is the
  * floor, not a shortcut we failed to avoid.
  */
-async function ensureSignedIn(cm: CmClient): Promise<{ refreshToken: string; steamId: string }> {
+async function ensureSignedIn(
+  cm: CmClient,
+): Promise<{ refreshToken: string; steamId: string; accountName: string }> {
   const saved = await loadSession();
   if (saved) {
     const status = inspectToken(saved.refreshToken);
@@ -133,7 +133,11 @@ async function ensureSignedIn(cm: CmClient): Promise<{ refreshToken: string; ste
           `${days === null ? '' : ` (${days} days left)`}`,
         'ok',
       );
-      return { refreshToken: saved.refreshToken, steamId: status.steamId };
+      return {
+        refreshToken: saved.refreshToken,
+        steamId: status.steamId,
+        accountName: saved.accountName,
+      };
     }
     write(`Signing in again: ${status.problem}`, 'dim');
   }
@@ -154,7 +158,11 @@ async function ensureSignedIn(cm: CmClient): Promise<{ refreshToken: string; ste
 
   await saveSession({ refreshToken: signedIn.refreshToken, accountName: signedIn.accountName });
   write(`Signed in as ${signedIn.accountName || status.steamId}`, 'ok');
-  return { refreshToken: signedIn.refreshToken, steamId: status.steamId };
+  return {
+    refreshToken: signedIn.refreshToken,
+    steamId: status.steamId,
+    accountName: signedIn.accountName,
+  };
 }
 
 /** Logs on and reaches the GC, or throws. Leaves the connection open on success. */
@@ -162,10 +170,13 @@ async function reachGc(): Promise<{ client: CmClient; gc: GcClient }> {
   const client = new CmClient({ onLog: (message) => write(message, 'dim') });
 
   await client.connect();
-  const { refreshToken, steamId } = await ensureSignedIn(client);
+  const { refreshToken, steamId, accountName } = await ensureSignedIn(client);
 
   const logon = await client.logOnWithToken(refreshToken, steamId, await machineId());
-  showAccount(logon.personaName ?? logon.steamId, logon.steamId);
+  // The persona name arrives separately and may not have landed yet, so fall
+  // back to the account name the sign-in gave us rather than to the SteamID,
+  // which is already shown underneath.
+  showAccount(logon.personaName || accountName || logon.steamId, logon.steamId);
   write(`Logged on as ${logon.steamId}`, 'ok');
   signOutButton.hidden = false;
 
@@ -181,8 +192,7 @@ async function reachGc(): Promise<{ client: CmClient; gc: GcClient }> {
 
 async function run(): Promise<void> {
   connectButton.disabled = true;
-  logEl.textContent = '';
-  logEl.className = '';
+  clearLog();
   accountEl.replaceChildren();
 
   let client: CmClient | null = null;
