@@ -125,11 +125,17 @@ whole of it.
 > extension, and the sign-in can be deleted at any time with the "Forget this
 > sign-in" button.
 >
-> **What the extension connects to.** Only Valve's servers
-> (`steamcommunity.com`, `api.steampowered.com`, `*.steamserver.net`), to read
-> your inventory and sign you in; and `raw.githubusercontent.com`, to download
-> the public CS2 item schema used to name items. No request carries anything
-> about you beyond what Steam already requires to answer it.
+> **What the extension connects to.** Valve's servers (`steamcommunity.com`,
+> `api.steampowered.com`, `*.steamserver.net`), to read your inventory and sign
+> you in; and `raw.githubusercontent.com`, to download the public CS2 item
+> schema used to name items. No request carries anything about you beyond what
+> Steam already requires to answer it.
+>
+> If — and only if — you press "Prices", the extension asks your permission to
+> also fetch a public price list from `prices.csgotrader.app`. That request
+> downloads a file of item prices and sends nothing about you or your
+> inventory. Decline it, or never press the button, and the extension never
+> contacts that host.
 >
 > **Your Steam credentials.** The extension never receives your Steam password
 > or your Steam Guard code. Signing in happens by QR code, approved in the
