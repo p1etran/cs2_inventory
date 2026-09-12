@@ -9,21 +9,19 @@ and without a server.
 CS2 game coordinator, listed 22 storage units with their labels and counts, and
 read one of them -- 1000 of 1000 items in 2.9 seconds, named correctly.
 
-**Sign in by QR, then read one storage unit.** The extension opens a page,
-shows a QR code to scan in the Steam mobile app, logs on to a Steam connection
-manager over a WebSocket, reaches the CS2 game coordinator, lists the account's
-storage units, and reads the contents of the fullest one -- naming each item
-through the same code the local CLI uses.
+**Now it reads all of them.** One press indexes the whole account -- the loose
+inventory plus every storage unit -- and keeps the result locally, so what
+changed since last time is a diff rather than a guess. Twenty-two units take
+roughly a minute and a half.
 
 To check it, run `node dist/cli.js containers` for the same account and compare
-the item count and names. That comparison against the already-working Node path
-is the strongest correctness signal available, which is why the local app is
-worth keeping around during this work.
+the item counts and names. That comparison against the already-working Node
+path is the strongest correctness signal available, which is why the local app
+is worth keeping around during this work.
 
-Next is the full sync: a loop over every unit, with reads spaced and a unit
-that fails to read leaving its stored items untouched rather than reported as
-removed. And a pre-sign-in view of the public inventory, so the extension shows
-something real before asking for anything.
+Still to come: a UI over the index rather than a log of it, and a view of the
+public inventory before sign-in, so the extension shows something real before
+asking for anything.
 
 ## Build and load
 
@@ -215,6 +213,7 @@ against the source.
 | `api.steampowered.com` | Steam's public server list. |
 | `raw.githubusercontent.com` | The public CS2 item schema, used to name items. |
 | `storage` | The index and the saved sign-in, both local. |
+| `unlimitedStorage` | A real account runs to tens of thousands of items -- ~12.8 MB against the 10 MB `storage` allows by default. Chrome shows no install warning for it. |
 
 Adding QR sign-in needed **no new permission**: the exchange runs over the
 connection-manager socket the extension already used, and the token goes into
@@ -230,6 +229,24 @@ traffic to Valve and the item schema. The build is unminified on purpose so
 that claim can be checked against the source.
 
 ## Layout
+
+## The sync, and the rule that matters in it
+
+A sync reads the loose inventory, then each storage unit in turn, spaced by
+1.1 seconds with a doubling backoff on the timeouts the coordinator hands out
+when it is busy. Twenty-two units take roughly a minute and a half.
+
+**A unit that fails to read leaves its stored items untouched.** Only units
+this run actually looked inside are eligible to report anything missing, so one
+timed-out read cannot turn a thousand items into "removed" -- which would be
+entirely plausible on screen and completely wrong. `src/sync/sync.ts` tracks
+the same thing on the server, and the rule is the reason this is a port rather
+than a rewrite.
+
+The unit list shows both counts: what the game says a unit holds and what we
+actually hold for it. A gap means an interrupted read, and it is shown rather
+than smoothed over -- a short list that looks complete is the failure worth
+preventing.
 
 ```
 extension/
@@ -250,6 +267,8 @@ extension/
       servers.ts      server selection
       session.ts      exchanges the browser session for a logon token
       emsg.ts         the message ids and result codes used
+    store.ts        the index: query surface over an array, persisted as JSON
+    sync.ts         reads the whole account, unit by unit
     ui/
       qr.ts           draws the sign-in QR code as inline SVG
 ```

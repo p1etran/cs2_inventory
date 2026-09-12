@@ -1,30 +1,32 @@
-import { Catalog, normalizeEconItem, readCasketId, type CatalogIndex } from '../../src/core.js';
+import { Catalog, readCasketId, type CatalogIndex } from '../../src/core.js';
 import { signInWithQr } from './steam/auth.js';
 import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
 import { machineId } from './steam/machineid.js';
 import { forgetSession, inspectToken, loadSession, saveSession } from './steam/tokens.js';
+import { Store } from './store.js';
+import { runSync } from './sync.js';
 import { CollapsingLog } from './ui/log.js';
 import { renderQrSvg } from './ui/qr.js';
 
 /**
- * Milestone 2b: reach the game coordinator and read one storage unit.
+ * The page: sign in, read the whole account, keep the index.
  *
- * The naming is not reimplemented here. `src/core.ts` is the same code the
- * local CLI uses, which is why the item names in this page can be compared
- * directly against `node dist/cli.js containers` for the same account -- and
- * that comparison is the strongest correctness check available, because the
- * Node path is already known to be right.
+ * Naming and reconciliation are not reimplemented here. `src/core.ts` is the
+ * same code the local CLI uses, which is why item names in this page can be
+ * compared directly against `node dist/cli.js containers` for the same
+ * account -- the strongest correctness check available, since the Node path is
+ * already known to be right.
  */
-
-const SCHEMA_URL =
-  'https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en/skins.json';
 
 const logEl = document.getElementById('log') as HTMLPreElement;
 const accountEl = document.getElementById('account') as HTMLDivElement;
 const connectButton = document.getElementById('connect') as HTMLButtonElement;
 const signOutButton = document.getElementById('signout') as HTMLButtonElement;
 const signInEl = document.getElementById('signin') as HTMLDivElement;
+const cancelButton = document.getElementById('cancel') as HTMLButtonElement;
+
+const store = new Store();
 
 const log = new CollapsingLog(logEl);
 
@@ -64,12 +66,6 @@ async function loadCatalog(): Promise<Catalog> {
 /** The storage unit an item sits in, read straight off its attributes. */
 function casketIdOf(item: GcEconItem): string | null {
   return readCasketId(item.attribute);
-}
-
-function describeUnit(item: GcEconItem, catalog: Catalog): string {
-  const resolved = catalog.resolve(normalizeEconItem(item));
-  const label = resolved.customName ?? 'Storage Unit';
-  return `${label} (${resolved.containedCount ?? 0} items, id ${resolved.assetId})`;
 }
 
 /** Shows the QR code and what to do with it. */
@@ -166,7 +162,7 @@ async function ensureSignedIn(
 }
 
 /** Logs on and reaches the GC, or throws. Leaves the connection open on success. */
-async function reachGc(): Promise<{ client: CmClient; gc: GcClient }> {
+async function reachGc(): Promise<{ client: CmClient; gc: GcClient; steamId: string }> {
   const client = new CmClient({ onLog: (message) => write(message, 'dim') });
 
   await client.connect();
@@ -187,7 +183,7 @@ async function reachGc(): Promise<{ client: CmClient; gc: GcClient }> {
     client.disconnect();
     throw error;
   }
-  return { client, gc };
+  return { client, gc, steamId: logon.steamId };
 }
 
 async function run(): Promise<void> {
@@ -196,73 +192,94 @@ async function run(): Promise<void> {
   accountEl.replaceChildren();
 
   let client: CmClient | null = null;
+  const controller = new AbortController();
+  cancelButton.hidden = false;
+  const onCancel = () => controller.abort();
+  cancelButton.addEventListener('click', onCancel, { once: true });
 
   try {
+    // Before anything else: without the previous index, every sync would diff
+    // against nothing and report the entire inventory as newly added.
+    await store.load();
+
     const reached = await reachGc();
     client = reached.client;
-    const { gc } = reached;
-
-    const units = gc.storageUnits;
-    write('', '');
-    write(`${gc.items.length} items in the inventory, ${units.length} storage units`, 'ok');
-
-    if (units.length === 0) {
-      write('No storage units on this account, so there is nothing to read.', 'dim');
-      return;
-    }
+    const { gc, steamId } = reached;
 
     write('Loading the item schema so names can be resolved...', 'dim');
     const catalog = await loadCatalog();
 
     write('', '');
-    for (const unit of units) {
-      write(`  ${describeUnit(unit, catalog)}`, 'dim');
-    }
-
-    // Read the fullest unit: it is the most convincing thing to check against
-    // the CLI, and the most likely to expose a paging problem if one exists.
-    const target = [...units].sort((a, b) => {
-      const count = (item: GcEconItem) => normalizeEconItem(item).containedCount ?? 0;
-      return count(b) - count(a);
-    })[0];
-    if (!target?.id) return;
-
-    const label = normalizeEconItem(target).customName ?? 'Storage Unit';
-    write('', '');
-    write(`Reading "${label}"...`, '');
     const startedAt = Date.now();
-    await gc.loadStorageUnit(target.id);
+    const summary = await runSync({
+      gc,
+      store,
+      catalog,
+      steamId,
+      signal: controller.signal,
+      onProgress: (message) => write(message, message.startsWith('  ') ? 'dim' : ''),
+    });
 
-    const contents = gc.itemsIn(target.id);
-    const expected = normalizeEconItem(target).containedCount ?? 0;
-    write(
-      `Read ${contents.length} of ${expected} items in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`,
-      contents.length === expected ? 'ok' : 'bad',
-    );
-
-    write('', '');
-    for (const item of contents.slice(0, 25)) {
-      const resolved = catalog.resolve(normalizeEconItem(item));
-      const float =
-        resolved.floatValue === null ? '' : `  ${resolved.floatValue.toFixed(6)}`;
-      write(`  ${resolved.marketHashName}${float}`, resolved.resolved ? '' : 'bad');
-    }
-    if (contents.length > 25) write(`  ... and ${contents.length - 25} more`, 'dim');
-
+    const seconds = ((Date.now() - startedAt) / 1000).toFixed(1);
     write('', '');
     write(
-      `Cross-check: \`node dist/cli.js containers\` should report ${expected} for "${label}".`,
+      `Indexed ${summary.totalItems} items across ${summary.containers.length} storage units in ${seconds}s`,
       'ok',
     );
+    if (summary.added || summary.removed || summary.moved) {
+      write(
+        `${summary.added} added, ${summary.removed} removed, ${summary.moved} moved since last time`,
+        '',
+      );
+    }
+    if (summary.unresolved) {
+      write(`${summary.unresolved} items could not be named from the schema`, 'dim');
+    }
+
+    // A unit that failed is the one thing worth showing loudly: its contents
+    // are still in the index from last time, and saying nothing would let
+    // stale data pass for fresh.
+    if (summary.failedContainers) {
+      write('', '');
+      write(`${summary.failedContainers} storage units could not be read:`, 'bad');
+      for (const container of summary.containers.filter((c) => c.error !== null)) {
+        write(`  ${container.label}: ${container.error}`, 'dim');
+      }
+      write('Their previous contents were kept rather than reported as gone.', 'dim');
+    }
+
+    showSummary();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     write('', '');
     write(message, 'bad');
   } finally {
+    cancelButton.removeEventListener('click', onCancel);
+    cancelButton.hidden = true;
     hideQr();
     client?.disconnect();
     connectButton.disabled = false;
   }
+}
+
+/** Lists the units with both counts, so a short read is visible at a glance. */
+function showSummary(): void {
+  write('', '');
+  for (const container of store.listContainers()) {
+    const short = container.storedCount < container.containedCount;
+    write(
+      `  ${container.label.padEnd(18)} ${String(container.storedCount).padStart(5)}` +
+        `${short ? ` of ${container.containedCount}` : ''}`,
+      short ? 'bad' : 'dim',
+    );
+  }
+
+  const stats = store.getStats();
+  write('', '');
+  write(
+    `${stats.totalItems} items indexed: ${stats.looseItems} loose, ${stats.storedItems} in units`,
+    'ok',
+  );
 }
 
 connectButton.addEventListener('click', () => void run());
@@ -283,4 +300,3 @@ void loadSession().then((saved) => {
 // Leave no rule behind once the page goes away.
 window.addEventListener('pagehide', () => void removeOriginRule());
 
-export { SCHEMA_URL };
