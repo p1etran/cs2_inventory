@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CS2 Inventory spike</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    width: 520px;
+    background: #12141a;
+    color: #e6e8ee;
+    font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header { padding: 12px 14px; border-bottom: 1px solid #2c313d; }
+  h1 { margin: 0 0 4px; font-size: 14px; }
+  header p { margin: 0; color: #8d94a5; font-size: 12px; }
+  .bar { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid #2c313d; }
+  button {
+    padding: 7px 13px;
+    border-radius: 7px;
+    border: 1px solid #2c313d;
+    background: #21252f;
+    color: #e6e8ee;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button:hover:not(:disabled) { border-color: #6fa8ff; }
+  button:disabled { opacity: .5; cursor: default; }
+  #log {
+    margin: 0;
+    padding: 12px 14px;
+    max-height: 420px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .ok { color: #7bd88f; }
+  .bad { color: #ff6b6b; }
+  .warn { color: #e0a86a; }
+  .dim { color: #8d94a5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CS2 Inventory — feasibility spike</h1>
+  <p>Read-only. Nothing is sent anywhere, and no token is ever printed.</p>
+</header>
+<div class="bar">
+  <button id="run">Run checks</button>
+  <button id="copy">Copy report</button>
+</div>
+<pre id="log" class="dim">Press "Run checks".</pre>
+<script src="popup.js"></script>
+</body>
+</html>

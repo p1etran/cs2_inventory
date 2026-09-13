@@ -83,7 +83,7 @@ export class SyncRunner {
   private async execute(): Promise<SyncSummary> {
     const session = await loadSession(this.config.credentialsPath, this.config.passphrase);
     if (!session) {
-      throw new Error('No saved Steam session. Run `cs2inv login` first.');
+      throw new Error('No saved Steam session. Run the login command first.');
     }
 
     const onProgress = (message: string) => this.push(message);

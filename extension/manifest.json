@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "CS2 Inventory",
+  "version": "1.0.0",
+  "description": "See inside your CS2 storage units. Indexes every item you own, searchable offline. No password: sign in by QR, and nothing leaves your browser.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "declarativeNetRequestWithHostAccess",
+    "storage",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "https://steamcommunity.com/*",
+    "https://api.steampowered.com/*",
+    "wss://*.steamserver.net/*",
+    "https://raw.githubusercontent.com/*"
+  ],
+  "action": {
+    "default_title": "Open CS2 Inventory",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "optional_host_permissions": [
+    "https://prices.csgotrader.app/*"
+  ]
+}

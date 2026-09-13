@@ -1,6 +1,5 @@
 import GlobalOffensive from 'globaloffensive';
 import SteamUser from 'steam-user';
-import { generateAuthCode } from 'steam-totp';
 import { DEF } from '../domain/attributes.js';
 import { sleep } from '../util/log.js';
 import type { RawEconItem } from '../domain/econ.js';
@@ -18,18 +17,36 @@ export interface GcOptions {
   onProgress?: (message: string) => void;
 }
 
-export interface PasswordLogin {
-  accountName: string;
-  password: string;
-  /** Called when Steam asks for a Guard code and we have no shared secret. */
-  guardCodeProvider?: (domain: string | null, lastCodeWrong: boolean) => Promise<string>;
-  sharedSecret?: string | null;
-}
-
 export interface LoginResult {
   steamId: string;
-  /** Present only after a password login; reuse it to skip the password next time. */
+  /** Steam rotates these, so a login can hand back a newer one than we sent. */
   refreshToken: string | null;
+}
+
+/**
+ * Steam reports login failures as an EResult code with a terse name attached.
+ * These are the ones worth explaining rather than passing through raw.
+ */
+const LOGIN_ERRORS: Record<number, string> = {
+  3: 'Could not reach Steam. Check your internet connection and try again.',
+  5: 'Steam rejected that account name or password.',
+  6: 'Logged in elsewhere: Steam dropped this session because the account signed in somewhere else.',
+  50: 'That account is already signed in to CS2 somewhere else. Close the game and try again.',
+  63: 'This account needs a Steam Guard code to sign in.',
+  65: 'That Steam Guard code was not accepted. Codes expire after 30 seconds, so try a fresh one.',
+  84: 'Steam is rate-limiting sign-ins from this address. Wait a few minutes and try again.',
+  88: 'That Steam Guard code was not accepted. Codes expire after 30 seconds, so try a fresh one.',
+};
+
+/** Turns a steam-user login failure into something worth showing a person. */
+export function describeLoginError(error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error);
+  const eresult = (error as { eresult?: number } | null)?.eresult;
+
+  if (typeof eresult === 'number' && LOGIN_ERRORS[eresult]) {
+    return `${LOGIN_ERRORS[eresult]} (Steam said: ${raw})`;
+  }
+  return raw;
 }
 
 export class GcError extends Error {
@@ -112,46 +129,17 @@ export class GcClient {
     });
   }
 
-  async loginWithPassword(login: PasswordLogin): Promise<LoginResult> {
-    // Steam asks for a Guard code out of band; answer it from the shared
-    // secret when we have one, otherwise hand the prompt back to the caller.
-    this.user.on('steamGuard', (domain: string | null, callback: (code: string) => void, lastCodeWrong: boolean) => {
-      if (login.sharedSecret) {
-        callback(generateAuthCode(login.sharedSecret));
-        return;
-      }
-      if (!login.guardCodeProvider) {
-        throw new GcError('Steam Guard code required but no prompt was provided');
-      }
-      void login.guardCodeProvider(domain, lastCodeWrong).then(
-        (code) => callback(code.trim()),
-        () => callback(''),
-      );
-    });
-
-    this.user.logOn({
-      accountName: login.accountName,
-      password: login.password,
-      ...(login.sharedSecret ? { twoFactorCode: generateAuthCode(login.sharedSecret) } : {}),
-    });
-
-    const steamId = await withTimeout(
-      this.waitForLogin(),
-      this.options.loginTimeoutMs,
-      'Timed out waiting for Steam login',
-    );
-
-    // The token arrives on its own event, usually just after loggedOn.
-    for (let i = 0; i < 40 && this.refreshToken === null; i += 1) {
-      await sleep(50);
-    }
-    return { steamId, refreshToken: this.refreshToken };
-  }
-
   async loginWithRefreshToken(refreshToken: string): Promise<LoginResult> {
-    this.user.logOn({ refreshToken });
+    // Listeners first: logOn is asynchronous and could settle immediately.
+    const loggedOn = this.waitForLogin();
+
+    // logOn rejects rather than emitting `error` when it dislikes the token
+    // itself, and an unhandled rejection there would take the process down.
+    const started = Promise.resolve(this.user.logOn({ refreshToken }) as unknown);
+    const rejectedAtStart = started.then(() => new Promise<never>(() => {}));
+
     const steamId = await withTimeout(
-      this.waitForLogin(),
+      Promise.race([loggedOn, rejectedAtStart]),
       this.options.loginTimeoutMs,
       'Timed out waiting for Steam login',
     );

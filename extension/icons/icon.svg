@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!--
+    A storage unit, which is the thing this extension exists to open.
+    Kept to three shapes and two colours: at 16px anything finer is mush.
+  -->
+  <rect width="128" height="128" rx="26" fill="#12141a"/>
+  <rect x="22" y="40" width="84" height="60" rx="7" fill="#6fa8ff"/>
+  <!-- The lid, lifted: the point is that you can see inside. -->
+  <rect x="16" y="26" width="96" height="14" rx="5" fill="#a8ccff"/>
+  <!-- The latch. -->
+  <rect x="56" y="58" width="16" height="24" rx="4" fill="#12141a"/>
+</svg>

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "CS2 Inventory — feasibility spike",
+  "version": "0.0.3",
+  "description": "Read-only diagnostic. Checks whether an extension can reuse the Steam session already in this browser and reach Steam's CM servers.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "cookies",
+    "declarativeNetRequestWithHostAccess",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://login.steampowered.com/*",
+    "https://steamcommunity.com/*",
+    "https://api.steampowered.com/*",
+    "https://*.steamserver.net/*",
+    "wss://*.steamserver.net/*",
+    "wss://ws.postman-echo.com/*",
+    "wss://echo.websocket.org/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "CS2 Inventory spike"
+  }
+}

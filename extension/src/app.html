@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CS2 Inventory</title>
+<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./extra.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>CS2 Inventory</h1>
+  <div class="search">
+    <input id="q" type="search" placeholder="Search everything you own, storage units included" autocomplete="off" autofocus>
+  </div>
+  <span id="account" class="account"></span>
+  <span id="prices" class="prices"></span>
+  <button id="loadprices" class="btn btn-quiet">Prices</button>
+  <button id="sync" class="btn">Sync</button>
+  <button id="cancel" class="btn btn-quiet" hidden>Stop</button>
+</header>
+
+<div id="syncbar" class="syncbar" hidden>
+  <span id="syncmsg"></span>
+  <button id="details" class="linkish">details</button>
+</div>
+
+<pre id="log" hidden></pre>
+
+<div id="signin" hidden></div>
+
+<section class="stats" id="stats"></section>
+
+<main>
+  <aside class="sidebar">
+    <h2>Storage units</h2>
+    <ul id="containers" class="containers"></ul>
+    <button id="signout" class="linkish" hidden>Forget this sign-in</button>
+  </aside>
+
+  <section class="content">
+    <div class="toolbar">
+      <div class="tabs">
+        <button class="tab is-active" data-view="items">Items</button>
+        <button class="tab" data-view="stacks">Grouped</button>
+        <button class="tab" data-view="changes">Changes</button>
+        <button class="tab" data-view="portfolio">Value</button>
+      </div>
+      <div class="filters">
+        <select id="category"><option value="">All types</option></select>
+        <select id="rarity"><option value="">All rarities</option></select>
+        <select id="location">
+          <option value="all">Anywhere</option>
+          <option value="loose">Loose only</option>
+          <option value="stored">In units only</option>
+        </select>
+        <select id="sort">
+          <option value="name">Sort: name</option>
+          <option value="float">Sort: float</option>
+          <option value="recent">Sort: newest</option>
+          <option value="value">Sort: value</option>
+        </select>
+        <label class="check"><input type="checkbox" id="stattrak"> StatTrak</label>
+      </div>
+    </div>
+
+    <div id="result-count" class="result-count"></div>
+    <div id="rows" class="rows"></div>
+    <div class="pager">
+      <button id="prev" class="btn btn-quiet">Previous</button>
+      <span id="page-label"></span>
+      <button id="next" class="btn btn-quiet">Next</button>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

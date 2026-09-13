@@ -1,0 +1,56 @@
+/*
+ * What the extension needs beyond web/style.css, which it shares unchanged so
+ * the two front ends cannot drift apart visually.
+ */
+
+.account { color: #8d94a5; font-size: 13px; white-space: nowrap; }
+
+.linkish {
+  background: none; border: 0; padding: 0; color: #8d94a5;
+  font: inherit; font-size: 12px; cursor: pointer; text-decoration: underline;
+}
+.linkish:hover { color: #e6e8ee; }
+
+#log {
+  margin: 0 20px; padding: 10px 12px; border: 1px solid #2c313d; border-radius: 8px;
+  background: #1a1d26; max-height: 240px; overflow-y: auto; white-space: pre-wrap;
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #8d94a5;
+}
+#log .ok { color: #7bd88f; }
+#log .bad { color: #ff6b6b; }
+#log .dim { color: #6b7280; }
+
+/* The sign-in panel takes over the page: there is nothing else to do until it
+   is done, and a QR competing with a table of items helps nobody. */
+#signin {
+  margin: 24px 20px; padding: 22px; border: 1px solid #2c313d; border-radius: 12px;
+  background: #1a1d26; max-width: 560px;
+}
+#qr { display: inline-block; padding: 10px; border-radius: 10px; background: #fff; line-height: 0; }
+#qr svg { display: block; }
+.steps { margin: 14px 0 0; padding-left: 20px; color: #8d94a5; font-size: 13px; }
+.steps li { margin: 3px 0; }
+.note { margin: 14px 0 0; color: #6b7280; font-size: 12.5px; max-width: 62ch; line-height: 1.5; }
+
+.syncbar .linkish { margin-left: 10px; }
+
+/* The sync bar's two outcomes. A unit that failed to read is the one thing
+   worth colouring, because the page otherwise looks complete when it is not. */
+.syncbar.ok { border-left: 3px solid #7bd88f; }
+.syncbar.warn { border-left: 3px solid #ffb454; color: #ffd9a0; }
+
+/* Money. A dash for an unpriced item is deliberately quiet: it is not a
+   zero, and it should not read as one. */
+.money {
+  width: 96px; text-align: right; font-variant-numeric: tabular-nums;
+  color: #e6e8ee; font-size: 13px;
+}
+.money.none { color: #4b5563; }
+.unit-value {
+  display: block; font-size: 11px; color: #8d94a5;
+  font-variant-numeric: tabular-nums; margin-top: 1px;
+}
+.float.up { color: #7bd88f; }
+.float.down { color: #ff6b6b; }
+.prices { color: #8d94a5; font-size: 12px; white-space: nowrap; }
