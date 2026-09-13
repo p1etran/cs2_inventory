@@ -1,12 +1,14 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest';
 import type { ContainerRow, EventRow, StackRow, Stats, StoredItem } from '../extension/src/store.js';
+import { DEVICE_NAME } from '../extension/src/steam/auth.js';
 import {
   emptyMessage,
   eventRow,
   itemRow,
   locationLabel,
   portfolioRows,
+  qrPanel,
   renderContainers,
   renderStats,
   stackRow,
@@ -398,5 +400,46 @@ describe('the empty state', () => {
   it('distinguishes an empty index from an unmatched search', () => {
     expect(emptyMessage({ hasIndex: true, hasQuery: true })).toMatch(/Nothing matches/);
     expect(emptyMessage({ hasIndex: true, hasQuery: false })).toBe('Nothing here.');
+  });
+});
+
+/**
+ * The sign-in panel makes promises about what happens to the user's account.
+ * Each one is checked here, because the cost of a claim drifting away from
+ * what the code does is not a rendering bug -- it is a lie on the one screen
+ * where the user is deciding whether to trust this at all.
+ */
+describe('the sign-in panel', () => {
+  const render = () => {
+    const host = document.createElement('div');
+    host.append(...qrPanel(document.createElement('svg'), DEVICE_NAME));
+    return host;
+  };
+
+  it('frames it as authorizing a device, not signing in to us', () => {
+    const text = render().textContent ?? '';
+    expect(text).toContain('Authorize this browser');
+    expect(text).toContain('not a sign-in to CS2 Inventory');
+  });
+
+  it('names the device exactly as auth.ts registers it, so it can be found and revoked', () => {
+    expect(render().querySelector('.note b')?.textContent).toBe(DEVICE_NAME);
+    expect(render().textContent).toContain('revoke it at any time');
+  });
+
+  it('names the relay scam rather than leaving the user to wonder', () => {
+    const disclosure = render().querySelector('details');
+    expect(disclosure?.querySelector('summary')?.textContent).toContain(
+      'How do I know this code is really mine?',
+    );
+    const answer = disclosure?.textContent ?? '';
+    expect(answer).toContain("someone else's session");
+    // Pointing at something checkable is the only answer that is worth
+    // anything here: reassurance from the page under suspicion proves nothing.
+    expect(answer).toContain('Network tab');
+  });
+
+  it('shows the QR it was handed', () => {
+    expect(render().querySelector('#qr')?.firstChild).not.toBeNull();
   });
 });

@@ -38,7 +38,12 @@ const GAMING_DEVICE_DESKTOP = 1;
  * auditing their Steam devices should be able to tell what this is and revoke
  * it, and a tool asking for a sign-in has no business disguising itself.
  */
-const DEVICE_NAME = 'CS2 Inventory (browser extension)';
+/**
+ * What the sign-in is called in the user's Steam device list, and so what the
+ * sign-in panel promises it will be called. Exported to keep those two the
+ * same string: a device the user cannot find is one they cannot revoke.
+ */
+export const DEVICE_NAME = 'CS2 Inventory (browser extension)';
 
 const POLL_TIMEOUT_MS = 5 * 60_000;
 const MIN_POLL_INTERVAL_MS = 2_000;

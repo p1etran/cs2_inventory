@@ -294,3 +294,74 @@ export function emptyMessage(options: { hasIndex: boolean; hasQuery: boolean }):
   if (!options.hasIndex) return 'Nothing indexed yet. Press "Sync" to read your inventory.';
   return options.hasQuery ? 'Nothing matches that search.' : 'Nothing here.';
 }
+
+/**
+ * The sign-in panel.
+ *
+ * This is the moment a new user decides whether to trust the extension, and
+ * the honest framing is not "sign in here": no account is being handed over,
+ * and there is nothing here to hand it to. Steam issues a session to this
+ * browser, the way it would to a new PC, and the user revokes it in the same
+ * place they would revoke that PC.
+ *
+ * A QR sign-in is also worth being suspicious of -- the scam version of this
+ * screen shows a code generated for somebody else's session -- so the panel
+ * names that attack itself rather than leaving the user to wonder. Nothing on
+ * screen can distinguish the two, so it points at what can: the source, and
+ * the network traffic the page is making while the code is on screen.
+ *
+ * `deviceName` is passed in rather than written here so the name the panel
+ * promises is the one `auth.ts` actually sends to Steam.
+ */
+export function qrPanel(qr: Node, deviceName: string): HTMLElement[] {
+  const heading = el('b', null, 'Authorize this browser');
+
+  const frame = el('div');
+  frame.id = 'qr';
+  frame.append(qr);
+
+  const lede = el(
+    'p',
+    'note lede',
+    'This is not a sign-in to CS2 Inventory. You are giving this browser a Steam ' +
+      'session, the same way you would give one to a new PC.',
+  );
+
+  const steps = el('ol', 'steps');
+  for (const step of [
+    'Open the Steam app on your phone.',
+    'Tap the Steam Guard shield, then the QR scanner.',
+    'Scan this code and approve it.',
+  ]) {
+    steps.append(el('li', null, step));
+  }
+
+  const note = el('p', 'note');
+  note.append(
+    document.createTextNode(
+      'Your password and Steam Guard code never leave the Steam app. The session is ' +
+        'issued to this browser, and there is no server here to send it to. It appears ' +
+        'in Steam under Authorized devices as ',
+    ),
+    el('b', null, deviceName),
+    document.createTextNode(', where you can revoke it at any time.'),
+  );
+
+  const disclosure = el('details', 'disclose');
+  disclosure.append(
+    el('summary', null, 'How do I know this code is really mine?'),
+    el(
+      'p',
+      null,
+      'Worth asking. The scam version of this screen shows you a code generated for ' +
+        "someone else's session, so approving it signs them in as you. This code came " +
+        "from this extension's own connection to Steam, and there is nowhere else for " +
+        'it to go: the extension has no server, and Chrome permits it to reach only ' +
+        "Steam's own hosts and GitHub for the public item-name list. You do not have " +
+        'to take that on trust — open DevTools on this page and watch the Network tab ' +
+        'while you scan.',
+    ),
+  );
+
+  return [heading, el('div', null, ''), frame, lede, steps, note, disclosure];
+}

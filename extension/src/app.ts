@@ -1,5 +1,5 @@
 import { Catalog, readCasketId, type CatalogIndex } from '../../src/core.js';
-import { signInWithQr } from './steam/auth.js';
+import { DEVICE_NAME, signInWithQr } from './steam/auth.js';
 import { CmClient, removeOriginRule } from './steam/cm.js';
 import { GcClient, type GcEconItem } from './steam/gc.js';
 import {
@@ -27,6 +27,7 @@ import {
   previewRow,
   previewUnitRow,
   portfolioRows,
+  qrPanel,
   renderContainers,
   renderStats,
   stackRow,
@@ -297,31 +298,7 @@ const casketIdOf = (item: GcEconItem): string | null => readCasketId(item.attrib
 function showQr(challengeUrl: string): void {
   const panel = $('signin');
   panel.hidden = false;
-  panel.replaceChildren();
-
-  const heading = el('b', null, 'Sign in with the Steam app');
-  const frame = el('div');
-  frame.id = 'qr';
-  frame.append(renderQrSvg(challengeUrl));
-
-  const steps = el('ol', 'steps');
-  for (const step of [
-    'Open the Steam app on your phone.',
-    'Tap the Steam Guard shield, then the QR scanner.',
-    'Scan this code and approve the sign-in.',
-  ]) {
-    steps.append(el('li', null, step));
-  }
-
-  const note = el(
-    'p',
-    'note',
-    'Steam never shows us your password, and the sign-in is kept in this browser ' +
-      'profile only — never sent anywhere but Steam. You need this again when it ' +
-      'expires, not on every visit.',
-  );
-
-  panel.append(heading, el('div', null, ''), frame, steps, note);
+  panel.replaceChildren(...qrPanel(renderQrSvg(challengeUrl), DEVICE_NAME));
 }
 
 function hideQr(): void {

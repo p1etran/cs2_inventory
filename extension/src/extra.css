@@ -32,6 +32,19 @@
 .steps { margin: 14px 0 0; padding-left: 20px; color: #8d94a5; font-size: 13px; }
 .steps li { margin: 3px 0; }
 .note { margin: 14px 0 0; color: #6b7280; font-size: 12.5px; max-width: 62ch; line-height: 1.5; }
+.note.lede { color: #8d94a5; font-size: 13.5px; margin-top: 16px; }
+.note b { color: #8d94a5; font-weight: 600; }
+
+/* Named, not hidden: the question a careful user is already asking, answered
+   in place rather than in a FAQ they would have to go and find. */
+.disclose { margin: 14px 0 0; max-width: 62ch; }
+.disclose summary {
+  color: #8d94a5; font-size: 12.5px; cursor: pointer; list-style-position: outside;
+}
+.disclose summary:hover { color: #e6e8ee; }
+.disclose p {
+  margin: 8px 0 0; color: #6b7280; font-size: 12.5px; line-height: 1.5;
+}
 
 .syncbar .linkish { margin-left: 10px; }
 

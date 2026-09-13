@@ -159,7 +159,7 @@ reports thousands of items as gone.
 ## Development
 
 ```bash
-npm test           # 421 tests
+npm test           # 425 tests
 npm run typecheck
 npm run build
 ```

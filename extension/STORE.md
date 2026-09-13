@@ -43,24 +43,35 @@ everything inside, on your own machine.
   unit, and over time.
 - Works offline once indexed. Open it on a plane and your inventory is there.
 
-**How you sign in**
+**You never log in to this extension**
 
-You scan a QR code in the Steam mobile app, the same way you sign in to Steam
-itself. This extension never sees your password and never sees a Steam Guard
-code. The sign-in shows up in your Steam device list as
-"CS2 Inventory (browser extension)" so you can recognise it and revoke it
-whenever you like.
+There is nothing here to log in to. No account, no API key, no token to paste,
+and no server of ours to hand anything to.
+
+Instead you authorize your own browser as a Steam device, by scanning a QR code
+in the Steam mobile app — the same flow you would use to set up a new PC. Steam
+issues the session to your browser. Your password and your Steam Guard code
+never leave the Steam app.
+
+That session appears in Steam under **Authorized devices** as
+"CS2 Inventory (browser extension)", exactly like a PC you signed in on, and
+you revoke it in the same place, yourself, whenever you want.
 
 You do not scan on every visit. The sign-in lasts months, and searching your
 index needs no sign-in at all. Before you sign in the first time, it already
 shows your public inventory and your units' item counts.
 
-**Where your data goes**
+**Where your data goes, and why that is not just a promise**
 
 Nowhere. There is no server, no account, and no analytics. Your inventory index
-and your Steam sign-in are stored in this browser profile and are never
-transmitted anywhere except to Steam itself. Removing the extension removes
-them with it.
+and your Steam sign-in live in this browser profile and are never transmitted
+anywhere except to Steam itself. Removing the extension removes them with it.
+
+You do not have to believe that. Chrome enforces it. An extension can only
+reach the hosts it declares up front, and you can read this one's list before
+you install: Steam's servers, and GitHub for the public list of item names.
+There is no permission here that would let it contact anybody else, it has no
+access to your browsing, it reads no other tab, and it ships no remote code.
 
 **Why an extension and not a website**
 
@@ -76,6 +87,82 @@ the repository.
 The full source is at https://github.com/p1etran/cs2_inventory. The published
 build is unminified on purpose: you can read the code that is actually running,
 not just the code we say is running.
+
+---
+
+## Questions people will actually ask
+
+Blunt versions, answered plainly. Worth having ready for the listing, the
+GitHub README, and every Reddit thread this gets posted in.
+
+**Isn't signing in with a QR code how people get scammed?**
+
+The scam is real, and it is worth understanding before you scan anything. It
+works by showing you a QR code generated for *the attacker's* session: you
+scan, you approve, and now they are signed in as you. The danger was never the
+QR code — it is who generated the one you are looking at.
+
+Which is why the answer here is not "trust us". This code comes from the
+extension's own connection to Steam, and there is nowhere else it could go:
+there is no server, and Chrome permits this extension to reach only Steam's own
+hosts. You can watch that in DevTools while you scan, and the code that
+requests it is a few dozen lines you can read.
+
+**Can you steal my skins?**
+
+No trade and no market listing can happen without a confirmation in your Steam
+mobile app, and we have no way to produce one. We also never hold your session
+— your browser does.
+
+**What if you push a malicious update later?**
+
+That is the honest risk with any extension, including this one, and you should
+not take our word about it. Every release is tagged in the repository. If you
+want to trust nothing at all, load the extension unpacked from source and
+nothing can update underneath you.
+
+**Do you see my inventory?**
+
+We see nothing. There is no server to see it with. Your index is in your
+browser and never leaves it.
+
+**Will this get my account banned?**
+
+The extension talks to Steam using the same protocol the CS2 client does, which
+is how every tool of this kind works, including the ones that have existed for
+years. Valve publishes no explicit blessing for third-party clients, so we will
+not pretend to have one. What we can tell you is exactly what it does: it logs
+in, reads your own items, and logs off.
+
+**Why does it kick me out of CS2?**
+
+An account gets one game session, and reading storage units needs it. Sync when
+you are not playing.
+
+---
+
+## How to write about safety here
+
+Rules for anyone editing this file, including future me. The audience is CS2
+traders, who are the most scam-aware users on the internet and who punish
+salesmanship on sight.
+
+1. **Say "cannot", not "will not", and name what enforces it.** "We don't send
+   your data anywhere" is a promise. "The extension has no permission to reach
+   any host but Steam's, and Chrome blocks the rest" is a fact the reader can
+   check in thirty seconds.
+2. **Be specific enough to be falsifiable.** Named hosts, real numbers, a
+   linked commit. Adjectives read as marketing; specifics read as true.
+3. **Name the residual risk before someone else does.** A safety page with no
+   "here is what could still go wrong" section reads as a sales page, and the
+   one thing this audience is expert at is spotting a sales page.
+4. **Never claim more than the code does.** In particular: the stored sign-in
+   token is not encrypted at rest today, so nothing here may imply that it is.
+   If that changes, this line changes with it.
+
+Phrases that must never appear: "100% safe", "bank-level security",
+"military-grade encryption", "we take your privacy seriously". They are
+load-bearing in scam copy, and readers have learned to treat them as warnings.
 
 ---
 
@@ -151,6 +238,10 @@ whole of it.
 - [ ] Host the privacy policy at a public URL and put that URL in the listing.
 - [ ] Screenshots: 1280×800 or 640×400. Worth showing the search across units,
       the unit sidebar with a count, and the QR sign-in.
+- [ ] A short video of revoking: sign in, sync, then Steam → Authorized devices
+      → revoke, and the extension losing access. Nobody who watches that still
+      believes they handed something over, and it costs one screen recording.
+      It is worth more than every paragraph above it.
 - [ ] Install the packed zip in a clean Chrome profile and read the permission
       prompt as a new user would.
 - [ ] Decide what the listing says about third-party tools and Steam. The
